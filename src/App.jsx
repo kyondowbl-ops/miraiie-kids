@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useMemo, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
