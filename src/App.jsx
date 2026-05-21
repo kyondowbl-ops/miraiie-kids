@@ -709,7 +709,7 @@ export default AppWithAuth;
 
 function App() {
   const [tab, setTab]         = useState("sougei");
-  const [children, setChildren] = useState(INITIAL_CHILDREN);
+  const [children, setChildren] = useState([]);
   const [staff, setStaff]     = useState(INITIAL_STAFF);
   const [cars, setCars]       = useState(INITIAL_CARS);
   const [schedule, setSchedule] = useState({});       // 送迎表データ
