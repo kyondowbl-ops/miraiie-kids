@@ -1118,15 +1118,23 @@ function App() {
   };
   const addStaff = () => {
     if (!nfStaff.name.trim()) return;
-    setStaff(p => [...p, { id:Date.now(), name:nfStaff.name.trim() }]);
+    const newList = [...staff, { id:Date.now(), name:nfStaff.name.trim() }];
+    setStaff(newList);
     setNfStaff({ name:"" });
+    if (supabase) saveMaster("staff", newList);
   };
   const addCar = () => {
     if (!nfCar.name.trim()) return;
    setCars(p => { const nl=[...p,{id:Date.now(),name:nfCar.name.trim(),color:CAR_COLORS[p.length%CAR_COLORS.length]}]; saveMaster("cars",nl); return nl; });
     setNfCar({ name:"" });
   };
-  const del = (setter, id) => { if (window.confirm("削除しますか？")) setter(p => p.filter(x=>x.id!==id)); };
+  const del = (setter, id, masterKey, currentList) => {
+    if (window.confirm("削除しますか？")) {
+      const newList = currentList.filter(x => x.id !== id);
+      setter(newList);
+      if (supabase && masterKey) saveMaster(masterKey, newList);
+    }
+  };
 
   // ============================================================
   // Excel出力関数
@@ -3386,7 +3394,7 @@ function App() {
                 <div key={car.id} className="mcard">
                   <div className="cicon" style={{background:car.color+"22",border:`2px solid ${car.color}`}}>🚗</div>
                   <div className="minfo"><div className="mname" style={{color:car.color}}>{car.name}</div><div className="mmeta">送迎表で選択可能</div></div>
-                  <button className="btn btn-d" onClick={()=>del(setCars,car.id)}>削除</button>
+                  <button className="btn btn-d" onClick={()=>del(setCars,car.id,"cars",cars)}>削除</button>
                 </div>
               ))}
 
@@ -3404,7 +3412,7 @@ function App() {
                 <div key={s.id} className="mcard">
                   <div className="mavatar" style={{background:"linear-gradient(135deg,#667eea,#1a3a5c)"}}>{s.name[0]}</div>
                   <div className="minfo"><div className="mname">{s.name}</div><div className="mmeta">運転者・同乗者として選択可能</div></div>
-                  <button className="btn btn-d" onClick={()=>del(setStaff,s.id)}>削除</button>
+                  <button className="btn btn-d" onClick={()=>del(setStaff,s.id,"staff",staff)}>削除</button>
                 </div>
               ))}
 
@@ -3430,7 +3438,7 @@ function App() {
                     <div className="mname">{c.name}</div>
                     <div className="mmeta">受給者証：{c.jukyuNo||"未入力"}　区分{c.kubun}　契約{c.keiyakuDays}日/月</div>
                   </div>
-                  <button className="btn btn-d" onClick={()=>del(setChildren,c.id)}>削除</button>
+                  <button className="btn btn-d" onClick={()=>del(setChildren,c.id,"children",children)}>削除</button>
                 </div>
               ))}
             </>
