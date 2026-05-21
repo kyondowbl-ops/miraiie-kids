@@ -1123,7 +1123,7 @@ function App() {
   };
   const addCar = () => {
     if (!nfCar.name.trim()) return;
-    setCars(p => [...p, { id:Date.now(), name:nfCar.name.trim(), color:CAR_COLORS[p.length%CAR_COLORS.length] }]);
+   setCars(p => { const nl=[...p,{id:Date.now(),name:nfCar.name.trim(),color:CAR_COLORS[p.length%CAR_COLORS.length]}]; saveMaster("cars",nl); return nl; });
     setNfCar({ name:"" });
   };
   const del = (setter, id) => { if (window.confirm("削除しますか？")) setter(p => p.filter(x=>x.id!==id)); };
