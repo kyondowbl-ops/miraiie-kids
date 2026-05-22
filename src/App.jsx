@@ -895,7 +895,15 @@ function App() {
         const schedData = await dbLoad("schedule");
         if (schedData) {
           const newSched = {};
-          schedData.forEach(row => { newSched[`${row.date_str}-${row.direction}`] = row.data; });
+          schedData.forEach(row => {
+            // 新形式(date_str + direction別カラム)と旧形式(date_str_direction)の両方に対応
+            if (row.direction) {
+              newSched[`${row.date_str}-${row.direction}`] = row.data;
+            } else {
+              const m = row.date_str.match(/^(.+)_(mukae|okuri)$/);
+              if (m) newSched[`${m[1]}-${m[2]}`] = row.data;
+            }
+          });
           setSchedule(newSched);
         }
         // 実績上書き
@@ -956,7 +964,14 @@ function App() {
           // 変更があったら該当stateを更新
           const row = payload.new;
           if (!row) return;
-          if (table==="schedule")      setSchedule(p=>({...p,[`${row.date_str}-${row.direction}`]:row.data}));
+          if (table==="schedule") {
+            if (row.direction) {
+              setSchedule(p=>({...p,[`${row.date_str}-${row.direction}`]:row.data}));
+            } else {
+              const m = row.date_str.match(/^(.+)_(mukae|okuri)$/);
+              if (m) setSchedule(p=>({...p,[`${m[1]}-${m[2]}`]:row.data}));
+            }
+          }
           if (table==="overrides")     setOverrides(p=>({...p,[row.record_key]:row.data}));
           if (table==="kojin_records") setKojinRecords(p=>({...p,[row.record_key]:row.data}));
           if (table==="joko_overrides")setJokoOverrides(p=>({...p,[row.ov_key]:row.data}));
@@ -993,14 +1008,15 @@ function App() {
   const sBins = schedule[sKey] || [];
   const updSched = (b) => {
     setSchedule(p => ({ ...p, [sKey]: b }));
-    // DB保存（送迎表）
     if (supabase) {
       setSyncing(true);
       const parts = sKey.match(/^(.+)-(mukae|okuri)$/);
       if (parts) {
-        dbUpsert("schedule", "date_str", parts[1] + "_" + parts[2], b)
-          .catch(()=>setSyncError(true))
-          .finally(()=>setSyncing(false));
+        supabase.from("schedule")
+          .upsert({ date_str: parts[1], direction: parts[2], data: b, updated_at: new Date().toISOString() },
+                  { onConflict: "date_str,direction" })
+          .then(({error}) => { if(error) setSyncError(true); })
+          .finally(() => setSyncing(false));
       }
     }
   };
@@ -2423,16 +2439,16 @@ function App() {
                                 {hasLinkedEnd && !isManualEnd && <span className="linked-badge">連携</span>}
                                 {isManualEnd  && <span className="manual-badge">手動</span>}
                               </td>
-                              <td><span className="cv">{r.attend==="present"?santei:""}</span></td>
+                              <td><input className="ti" style={{width:40}} value={r.attend==="present"?(r.santeiManual!==undefined?r.santeiManual:santei):""} onChange={e=>setOv(d,"santeiManual",e.target.value)} disabled={r.attend!=="present"}/></td>
                               <td><span className="cv">{r.attend==="present"?zaitai:""}</span></td>
                               <td><button className={`chkbox ${r.soJu?"on":""}`} onClick={()=>setOv(d,"soJu",!r.soJu)} disabled={r.attend!=="present"}>{r.soJu?"1":""}</button></td>
                               <td><button className={`chkbox ${r.soBin?"on":""}`} onClick={()=>setOv(d,"soBin",!r.soBin)} disabled={r.attend!=="present"}>{r.soBin?"1":""}</button></td>
-                              <td><button className={`chkbox ${r.kazoku?"on":""}`} onClick={()=>setOv(d,"kazoku",!r.kazoku)} disabled={r.attend!=="present"}>{r.kazoku?"✓":""}</button></td>
-                              <td><button className={`chkbox ${r.enchyo?"on":""}`} onClick={()=>setOv(d,"enchyo",!r.enchyo)} disabled={r.attend!=="present"}>{r.enchyo?"✓":""}</button></td>
-                              <td><button className={`chkbox ${r.senmon?"on":""}`} onClick={()=>setOv(d,"senmon",!r.senmon)} disabled={r.attend!=="present"}>{r.senmon?"✓":""}</button></td>
-                              <td><button className={`chkbox ${r.iryo?"on":""}`}   onClick={()=>setOv(d,"iryo",!r.iryo)}     disabled={r.attend!=="present"}>{r.iryo?"✓":""}</button></td>
-                              <td><button className={`chkbox ${r.jiritsu?"on":""}`} onClick={()=>setOv(d,"jiritsu",!r.jiritsu)} disabled={r.attend!=="present"}>{r.jiritsu?"✓":""}</button></td>
-                              <td><button className={`chkbox ${r.kankei?"on":""}`}  onClick={()=>setOv(d,"kankei",!r.kankei)}   disabled={r.attend!=="present"}>{r.kankei?"✓":""}</button></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.kazoku||""):""} onChange={e=>setOv(d,"kazoku",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.enchyo||""):""} onChange={e=>setOv(d,"enchyo",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.senmon||""):""} onChange={e=>setOv(d,"senmon",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.iryo||""):""} onChange={e=>setOv(d,"iryo",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.jiritsu||""):""} onChange={e=>setOv(d,"jiritsu",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.kankei||""):""} onChange={e=>setOv(d,"kankei",e.target.value)} disabled={r.attend!=="present"}/></td>
                               <td>
                                 {r.attend==="present" && (
                                   <div className={`sign-area ${r.signed?"signed":""}`} onClick={()=>setOv(d,"signed",!r.signed)}>
