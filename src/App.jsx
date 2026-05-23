@@ -2443,12 +2443,12 @@ function App() {
                               <td><span className="cv">{r.attend==="present"?zaitai:""}</span></td>
                               <td><button className={`chkbox ${r.soJu?"on":""}`} onClick={()=>setOv(d,"soJu",!r.soJu)} disabled={r.attend!=="present"}>{r.soJu?"1":""}</button></td>
                               <td><button className={`chkbox ${r.soBin?"on":""}`} onClick={()=>setOv(d,"soBin",!r.soBin)} disabled={r.attend!=="present"}>{r.soBin?"1":""}</button></td>
-                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.kazoku||""):""} onChange={e=>setOv(d,"kazoku",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><select className="msel2" style={{width:36,fontSize:10}} value={r.attend==="present"?(r.kazoku||""):""} onChange={e=>setOv(d,"kazoku",e.target.value)} disabled={r.attend!=="present"}><option value=""></option><option value="I">I</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></td>
                               <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.enchyo||""):""} onChange={e=>setOv(d,"enchyo",e.target.value)} disabled={r.attend!=="present"}/></td>
                               <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.senmon||""):""} onChange={e=>setOv(d,"senmon",e.target.value)} disabled={r.attend!=="present"}/></td>
                               <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.iryo||""):""} onChange={e=>setOv(d,"iryo",e.target.value)} disabled={r.attend!=="present"}/></td>
                               <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.jiritsu||""):""} onChange={e=>setOv(d,"jiritsu",e.target.value)} disabled={r.attend!=="present"}/></td>
-                              <td><input className="ti" style={{width:30,textAlign:"center"}} type="number" min="0" value={r.attend==="present"?(r.kankei||""):""} onChange={e=>setOv(d,"kankei",e.target.value)} disabled={r.attend!=="present"}/></td>
+                              <td><select className="msel2" style={{width:36,fontSize:10}} value={r.attend==="present"?(r.kankei||""):""} onChange={e=>setOv(d,"kankei",e.target.value)} disabled={r.attend!=="present"}><option value=""></option><option value="I">I</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></td>
                               <td>
                                 {r.attend==="present" && (
                                   <div className={`sign-area ${r.signed?"signed":""}`} onClick={()=>setOv(d,"signed",!r.signed)}>
