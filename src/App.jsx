@@ -1155,6 +1155,50 @@ function App() {
   // ============================================================
   // Excel出力関数
   // ============================================================
+  // ============================================================
+  // Excel罫線ヘルパー関数
+  // ============================================================
+  const XL_BORDER = {
+    top:    {style:"thin",color:{rgb:"000000"}},
+    bottom: {style:"thin",color:{rgb:"000000"}},
+    left:   {style:"thin",color:{rgb:"000000"}},
+    right:  {style:"thin",color:{rgb:"000000"}},
+  };
+  const XL_BORDER_MED = {
+    top:    {style:"medium",color:{rgb:"000000"}},
+    bottom: {style:"medium",color:{rgb:"000000"}},
+    left:   {style:"medium",color:{rgb:"000000"}},
+    right:  {style:"medium",color:{rgb:"000000"}},
+  };
+  const xlCell = (v, opts={}) => ({
+    v: v ?? "", t: typeof v==="number"?"n":"s",
+    s: {
+      font: {sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
+      alignment: {horizontal:opts.align||"center", vertical:"center", wrapText:opts.wrap||false},
+      border: opts.thick ? XL_BORDER_MED : XL_BORDER,
+      ...(opts.fill?{fill:{fgColor:{rgb:opts.fill},patternType:"solid"}}:{}),
+    }
+  });
+  const xlHdr = (v, fill="1a3a5c") => xlCell(v, {bold:true, color:"FFFFFF", fill});
+  // AOAの2D配列にスタイルを一括適用してWSを作成
+  const makeStyledWS = (data, headerRows=1, colWidths=[], hdrFill="1a3a5c") => {
+    const ws = {};
+    data.forEach((row, ri) => {
+      row.forEach((val, ci) => {
+        const addr = XLSX.utils.encode_cell({r:ri,c:ci});
+        const isHdr = ri < headerRows;
+        const isWkend = false;
+        ws[addr] = isHdr
+          ? xlHdr(val, hdrFill)
+          : xlCell(val, {align: ci===0?"center":"left"});
+      });
+    });
+    if(colWidths.length) ws["!cols"] = colWidths.map(w=>({wch:w}));
+    ws["!ref"] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:data.length-1,c:(data[0]?.length||1)-1}});
+    return ws;
+  };
+
+
 
   // 送迎表をExcel出力（月単位）
   const exportSougeiExcel = (year, month) => {
@@ -1253,44 +1297,64 @@ function App() {
   const exportSougeiXLSX = (year, month) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
-    const summaryRows = [["日付","曜日","区分","便","車種","運転者","同乗者","時刻","お子さん","場所"]];
+    const sumData = [["日付","曜日","区分","便","車種","運転者","同乗者","時刻","お子さん","場所"]];
     for (let d = 1; d <= daysInMon; d++) {
       const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
       const dow = getDow(year, month, d);
-      const dayRows = [
-        [`送迎表　令和${year-2018}年${month}月${d}日（${dow}）`,"","","","","","","","",""],
-        ["区分","便","車種","運転者","同乗者","時刻","お子さん","場所","",""]
-      ];
+      const wkend = isWeekend(year, month, d);
+      const dayData = [[`送迎表　令和${year-2018}年${month}月${d}日（${dow}）　${JIGYOSHO_NAME}`,"","","","","","",""],
+                       ["区分","便","車種","運転者","同乗者","時刻","お子さん","場所"]];
       let hasData = false;
       ["mukae","okuri"].forEach(dir => {
         (schedule[`${dateStr}-${dir}`]||[]).forEach((bin,bi) => {
           const car    = cars.find(c=>c.id===Number(bin.carId))?.name||"";
           const driver = staff.find(s=>s.id===Number(bin.driverId))?.name||"";
           const joshu  = staff.find(s=>s.id===Number(bin.joshuId))?.name||"";
+          const dirFill = dir==="mukae"?"fff3e0":"ebf8ff";
           bin.stops.forEach(stop => {
             const dl = dir==="mukae"?"迎え":"送り";
             if (stop.type==="base") {
-              dayRows.push([dl,`${bi+1}便`,car,driver,joshu,stop.time||"","みらいえ","","",""]);
-              summaryRows.push([`${month}/${d}`,dow,dl,`${bi+1}便`,car,driver,joshu,stop.time||"","みらいえ",""]);
+              dayData.push([dl,`${bi+1}便`,car,driver,joshu,stop.time||"","🏫 みらいえ",""]);
+              sumData.push([`${month}/${d}`,dow,dl,`${bi+1}便`,car,driver,joshu,stop.time||"","みらいえ",""]);
               hasData = true;
             } else if (stop.type==="child"&&stop.childId) {
               const cn = children.find(c=>c.id===Number(stop.childId))?.name||"";
-              dayRows.push([dl,`${bi+1}便`,car,driver,joshu,stop.time||"",cn,stop.basho||"","",""]);
-              summaryRows.push([`${month}/${d}`,dow,dl,`${bi+1}便`,car,driver,joshu,stop.time||"",cn,stop.basho||""]);
+              dayData.push([dl,`${bi+1}便`,car,driver,joshu,stop.time||"",cn,stop.basho||""]);
+              sumData.push([`${month}/${d}`,dow,dl,`${bi+1}便`,car,driver,joshu,stop.time||"",cn,stop.basho||""]);
               hasData = true;
             }
           });
         });
       });
       if (hasData) {
-        const ws = XLSX.utils.aoa_to_sheet(dayRows);
-        ws["!cols"]=[{wch:6},{wch:6},{wch:14},{wch:8},{wch:8},{wch:8},{wch:14},{wch:8},{wch:4},{wch:4}];
-        ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:9}}];
+        const ws = {};
+        dayData.forEach((row,ri) => {
+          row.forEach((val,ci) => {
+            const addr = XLSX.utils.encode_cell({r:ri,c:ci});
+            const isTitle = ri===0;
+            const isHdr = ri===1;
+            ws[addr] = isTitle ? xlCell(val,{bold:true,sz:11,fill:"1a3a5c",color:"FFFFFF",align:"left"}) :
+                       isHdr  ? xlHdr(val) :
+                       xlCell(val,{align:ci>=5?"center":"left",
+                         fill:val==="迎え"?"fff3e0":val==="送り"?"ebf8ff":undefined});
+          });
+        });
+        ws["!cols"]=[{wch:6},{wch:6},{wch:14},{wch:10},{wch:8},{wch:8},{wch:16},{wch:8}];
+        ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:7}}];
+        ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:dayData.length-1,c:7}});
         XLSX.utils.book_append_sheet(wb, ws, `${month}月${d}日`);
       }
     }
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-    wsSummary["!cols"]=[{wch:8},{wch:6},{wch:6},{wch:6},{wch:14},{wch:8},{wch:8},{wch:8},{wch:14},{wch:8}];
+    // 月間サマリーシート
+    const wsSummary = {};
+    sumData.forEach((row,ri) => {
+      row.forEach((val,ci) => {
+        wsSummary[XLSX.utils.encode_cell({r:ri,c:ci})] =
+          ri===0 ? xlHdr(val) : xlCell(val,{align:ci>=5?"center":"left"});
+      });
+    });
+    wsSummary["!cols"]=[{wch:8},{wch:6},{wch:6},{wch:6},{wch:14},{wch:10},{wch:8},{wch:8},{wch:16},{wch:8}];
+    wsSummary["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sumData.length-1,c:9}});
     XLSX.utils.book_append_sheet(wb, wsSummary, "月間サマリー");
     XLSX.writeFile(wb, `送迎表_令和${year-2018}年${month}月.xlsx`);
   };
@@ -1328,34 +1392,74 @@ function App() {
     const daysInMon = getDaysInMonth(year, month);
     const targetChildren = childId === "all" ? children : children.filter(c=>c.id===Number(childId));
     targetChildren.forEach(child => {
-      const rows = [
-        [`放課後等デイサービス提供実績記録票　令和${year-2018}年${month}月分`,"","","","","","","","","","",""],
-        [`受給者証番号：${child.jukyuNo||""}　氏名：${child.name}　事業所：${JIGYOSHO_NAME}`,"","","","","","","","","","",""],
-        ["日","曜","状況","形態","区分","開始時間","終了時間","算定時間","滞在時間","送迎(住)","送迎(便)","備考"]
-      ];
+      const ws = {};
+      const R = (r,c) => XLSX.utils.encode_cell({r,c});
+      let row = 0;
+      const COLS = 12;
+      // タイトル
+      ws[R(row,0)] = xlCell(`令和${year-2018}年${month}月分　放課後等デイサービス提供実績記録票`,{bold:true,sz:12,fill:"1a3a5c",color:"FFFFFF",align:"left"});
+      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"1a3a5c",color:"FFFFFF"});
+      row++;
+      // 受給者情報
+      const infoFill = "f0f4f8";
+      ws[R(row,0)] = xlCell(`受給者証番号：${child.jukyuNo||""}`,{align:"left",fill:infoFill});
+      ws[R(row,1)] = xlCell("",{fill:infoFill});
+      ws[R(row,2)] = xlCell(`給付決定保護者氏名：${child.name}`,{align:"left",fill:infoFill});
+      for(let c=3;c<=6;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
+      ws[R(row,7)] = xlCell(`事業所：${JIGYOSHO_NAME}`,{align:"left",fill:infoFill});
+      for(let c=8;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
+      row++;
+      ws[R(row,0)] = xlCell(`契約支給量：${child.keiyakuDays||10}日/月　区分：${child.kubun||2}　事業所番号：${JIGYOSHO_NO}`,{align:"left",fill:infoFill});
+      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
+      row++;
+      // ヘッダー
+      const hdrs = ["日","曜","状況","形態","区分","開始時間","終了時間","算定時間数","滞在時間","送迎(住)","送迎(便)","備考"];
+      hdrs.forEach((h,c) => ws[R(row,c)] = xlHdr(h));
+      row++;
+      // データ行（出席日のみ）
+      let presentCount=0;
       for (let d = 1; d <= daysInMon; d++) {
         const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
         const dow = getDow(year, month, d);
+        const wkend = isWeekend(year, month, d);
         const linked = deriveJisseki(dateStr, child.id, schedule);
         const ov     = overrides[`${child.id}-${year}-${month}-${d}`]||{};
         const hasLinked = linked.startTime||linked.endTime;
         const attend = ov.attend!==undefined ? ov.attend : (hasLinked?"present":"");
+        if (attend !== "present") continue;
         const s = ov.timeStart||linked.startTime||"";
         const e = ov.timeEnd  ||linked.endTime  ||"";
-        rows.push([
-          d, dow,
-          attend==="present"?"○":attend==="absent"?"×":"",
-          ov.keitai||"1", ov.kubun||child.kubun||"2",
-          s, e,
-          calcSantei(s,e), calcZaitai(s,e),
-          (ov.soJu!==undefined?ov.soJu:linked.soJu)?"1":"",
-          (ov.soBin!==undefined?ov.soBin:linked.soBin)?"1":"",
-          ov.note||""
-        ]);
+        const santei = ov.santeiManual!==undefined ? ov.santeiManual : calcSantei(s,e);
+        const fill = wkend?"fff8f0":undefined;
+        const dowColor = dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000";
+        presentCount++;
+        ws[R(row,0)]  = xlCell(d,{bold:true,fill});
+        ws[R(row,1)]  = xlCell(dow,{color:dowColor,fill});
+        ws[R(row,2)]  = xlCell("○",{fill:"e6ffe6"});
+        ws[R(row,3)]  = xlCell(ov.keitai||"1",{fill});
+        ws[R(row,4)]  = xlCell(ov.kubun||child.kubun||"2",{fill});
+        ws[R(row,5)]  = xlCell(s,{fill});
+        ws[R(row,6)]  = xlCell(e,{fill});
+        ws[R(row,7)]  = xlCell(santei,{fill});
+        ws[R(row,8)]  = xlCell(calcZaitai(s,e),{fill});
+        ws[R(row,9)]  = xlCell((ov.soJu!==undefined?ov.soJu:linked.soJu)?"1":"",{fill});
+        ws[R(row,10)] = xlCell((ov.soBin!==undefined?ov.soBin:linked.soBin)?"1":"",{fill});
+        ws[R(row,11)] = xlCell(ov.note||"",{align:"left",fill});
+        row++;
       }
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"]=[{wch:4},{wch:4},{wch:6},{wch:6},{wch:6},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:16}];
-      ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}}];
+      // 合計行
+      ws[R(row,0)] = xlCell("合計",{bold:true,fill:"f0f4f8"});
+      ws[R(row,1)] = xlCell(`${presentCount}日`,{bold:true,fill:"f0f4f8"});
+      for(let c=2;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"f0f4f8"});
+      row++;
+      ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
+      ws["!cols"]=[{wch:4},{wch:4},{wch:6},{wch:6},{wch:6},{wch:8},{wch:8},{wch:8},{wch:8},{wch:7},{wch:7},{wch:20}];
+      ws["!merges"]=[
+        {s:{r:0,c:0},e:{r:0,c:COLS-1}},
+        {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:6}},{s:{r:1,c:7},e:{r:1,c:COLS-1}},
+        {s:{r:2,c:0},e:{r:2,c:COLS-1}},
+      ];
+      ws["!rows"]=[{hpt:18},{hpt:15},{hpt:15},{hpt:20},...Array(presentCount+1).fill({hpt:16})];
       XLSX.utils.book_append_sheet(wb, ws, child.name.slice(0,31));
     });
     XLSX.writeFile(wb, `実績記録_令和${year-2018}年${month}月.xlsx`);
@@ -1398,10 +1502,16 @@ function App() {
     };
     const targetChildren = childId==="all"?children:children.filter(c=>c.id===Number(childId));
     targetChildren.forEach(child => {
-      const rows = [
-        [`個人記録　${child.name}　令和${year-2018}年${month}月`,"","","","","",""],
-        ["日","曜","時間","今日の様子","活動内容","関わり方","家庭・学校連絡","その他","出来事"]
-      ];
+      const ws = {};
+      const R = (r,c) => XLSX.utils.encode_cell({r,c});
+      const COLS = 9;
+      let row = 0;
+      ws[R(row,0)]=xlCell(`個人記録　${child.name}　令和${year-2018}年${month}月　${JIGYOSHO_NAME}`,{bold:true,sz:11,fill:"805ad5",color:"FFFFFF",align:"left"});
+      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"805ad5",color:"FFFFFF"});
+      row++;
+      const hdrs=["日","曜","利用時間","今日の様子","活動内容","関わり方","家庭・学校連絡","その他","出来事"];
+      hdrs.forEach((h,c)=>ws[R(row,c)]=xlHdr(h,"553c9a"));
+      row++;
       for (let d = 1; d <= daysInMon; d++) {
         const ids = getAttIds(year,month,d);
         if (!ids.includes(child.id)) continue;
@@ -1411,14 +1521,24 @@ function App() {
         const jOv=overrides[`${child.id}-${year}-${month}-${d}`]||{};
         const s=jOv.timeStart||jLink.startTime||"";
         const e=jOv.timeEnd  ||jLink.endTime  ||"";
+        const dow=getDow(year,month,d);
+        const wkend=isWeekend(year,month,d);
+        const fill=wkend?"fff8f0":undefined;
         const events=(kr.events||[]).map(ev=>`${ev.time||""}${ev.category?"["+ev.category+"]":""}${ev.memo||""}`).join(" / ");
-        rows.push([d,getDow(year,month,d),s&&e?`${s}〜${e}`:"",
-          (kr.yousu||[]).join("・"),(kr.what||[]).join("・"),(kr.how||[]).join("・"),
-          kr.renraku||"",kr.sonota||"",events]);
+        ws[R(row,0)]=xlCell(d,{bold:true,fill});
+        ws[R(row,1)]=xlCell(dow,{color:dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000",fill});
+        ws[R(row,2)]=xlCell(s&&e?`${s}〜${e}`:"",{fill});
+        ws[R(row,3)]=xlCell((kr.yousu||[]).join("・"),{align:"left",fill,wrap:true});
+        ws[R(row,4)]=xlCell((kr.what||[]).join("・"),{align:"left",fill,wrap:true});
+        ws[R(row,5)]=xlCell((kr.how||[]).join("・"),{align:"left",fill,wrap:true});
+        ws[R(row,6)]=xlCell(kr.renraku||"",{align:"left",fill,wrap:true});
+        ws[R(row,7)]=xlCell(kr.sonota||"",{align:"left",fill,wrap:true});
+        ws[R(row,8)]=xlCell(events,{align:"left",fill,wrap:true});
+        row++;
       }
-      const ws=XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"]=[{wch:4},{wch:4},{wch:12},{wch:24},{wch:20},{wch:16},{wch:20},{wch:16},{wch:30}];
-      ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:8}}];
+      ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
+      ws["!cols"]=[{wch:4},{wch:4},{wch:12},{wch:24},{wch:18},{wch:14},{wch:20},{wch:14},{wch:28}];
+      ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:COLS-1}}];
       XLSX.utils.book_append_sheet(wb,ws,child.name.slice(0,31));
     });
     XLSX.writeFile(wb,`個人記録_令和${year-2018}年${month}月.xlsx`);
@@ -1457,18 +1577,42 @@ function App() {
   const exportJokoXLSX = (year, month) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
-    const allRows = [["日付","曜日","区分","便","車種","運転者","お子さん","乗車時刻","乗車場所","降車時刻","降車場所","確認"]];
+    const ws = {};
+    const R = (r,c) => XLSX.utils.encode_cell({r,c});
+    const COLS = 12;
+    let row = 0;
+    ws[R(row,0)]=xlCell(`乗降記録　令和${year-2018}年${month}月　${JIGYOSHO_NAME}`,{bold:true,sz:11,fill:"319795",color:"FFFFFF",align:"left"});
+    for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"319795",color:"FFFFFF"});
+    row++;
+    const hdrs=["日付","曜日","区分","便","車種","運転者","お子さん","乗車時刻","乗車場所","降車時刻","降車場所","確認"];
+    hdrs.forEach((h,c)=>ws[R(row,c)]=xlHdr(h,"276749"));
+    row++;
     for(let d=1;d<=daysInMon;d++){
       const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
       const dow=getDow(year,month,d);
+      const wkend=isWeekend(year,month,d);
+      const fill=wkend?"fff8f0":undefined;
       const jokoRows=getJokoData(dateStr);
-      jokoRows.forEach(row=>{
-        allRows.push([`${month}/${d}`,dow,row.dir==="mukae"?"迎え":"送り",`${row.binNo}便`,
-          row.car?.name||"",row.driver,row.child.name,row.joTime,row.joBasho,row.koTime,row.koBasho,row.signed?"確認済":""]);
+      jokoRows.forEach(jrow=>{
+        const dowColor=dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000";
+        ws[R(row,0)]=xlCell(`${month}/${d}`,{bold:true,fill});
+        ws[R(row,1)]=xlCell(dow,{color:dowColor,fill});
+        ws[R(row,2)]=xlCell(jrow.dir==="mukae"?"迎え":"送り",{fill:jrow.dir==="mukae"?"fff3e0":"ebf8ff"});
+        ws[R(row,3)]=xlCell(`${jrow.binNo}便`,{fill});
+        ws[R(row,4)]=xlCell(jrow.car?.name||"",{align:"left",fill});
+        ws[R(row,5)]=xlCell(jrow.driver,{fill});
+        ws[R(row,6)]=xlCell(jrow.child.name,{bold:true,align:"left",fill});
+        ws[R(row,7)]=xlCell(jrow.joTime,{fill});
+        ws[R(row,8)]=xlCell(jrow.joBasho,{fill});
+        ws[R(row,9)]=xlCell(jrow.koTime,{fill});
+        ws[R(row,10)]=xlCell(jrow.koBasho,{fill});
+        ws[R(row,11)]=xlCell(jrow.signed?"㊞":"",{fill});
+        row++;
       });
     }
-    const ws=XLSX.utils.aoa_to_sheet(allRows);
+    ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
     ws["!cols"]=[{wch:8},{wch:6},{wch:6},{wch:6},{wch:14},{wch:8},{wch:14},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8}];
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:COLS-1}}];
     XLSX.utils.book_append_sheet(wb,ws,"乗降記録");
     XLSX.writeFile(wb,`乗降記録_令和${year-2018}年${month}月.xlsx`);
   };
@@ -1492,18 +1636,38 @@ function App() {
   const exportGyomuXLSX = (year, month) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
-    const rows=[["日付","曜日","天気","出勤スタッフ","利用者数","活動内容","全体の様子","事故等","申し送り"]];
+    const ws = {};
+    const R = (r,c) => XLSX.utils.encode_cell({r,c});
+    const COLS = 9;
+    let row = 0;
+    ws[R(row,0)]=xlCell(`業務日誌　令和${year-2018}年${month}月　${JIGYOSHO_NAME}`,{bold:true,sz:11,fill:"744210",color:"FFFFFF",align:"left"});
+    for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"744210",color:"FFFFFF"});
+    row++;
+    const hdrs=["日付","曜日","天気","出勤スタッフ","利用者数","活動内容","全体の様子","事故等","申し送り"];
+    hdrs.forEach((h,c)=>ws[R(row,c)]=xlHdr(h,"92400e"));
+    row++;
     for(let d=1;d<=daysInMon;d++){
       const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
       const dow=getDow(year,month,d);
+      const wkend=isWeekend(year,month,d);
       const gr=gyomuRecords[dateStr]||{};
       if(!gr.shukkin&&!gr.zentai) continue;
+      const fill=wkend?"fff8f0":undefined;
       const shukkinNames=(gr.shukkin||[]).map(id=>staff.find(s=>s.id===id)?.name||"").join("・");
-      rows.push([`${month}/${d}`,dow,gr.tenki||"",shukkinNames,gr.riyo_count||"",
-        (gr.katsudo||[]).join("・"),gr.zentai||"",gr.jiko||"",gr.moshiokuri||""]);
+      ws[R(row,0)]=xlCell(`${month}/${d}`,{bold:true,fill});
+      ws[R(row,1)]=xlCell(dow,{color:dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000",fill});
+      ws[R(row,2)]=xlCell(gr.tenki||"",{fill});
+      ws[R(row,3)]=xlCell(shukkinNames,{align:"left",fill});
+      ws[R(row,4)]=xlCell(gr.riyo_count||"",{fill});
+      ws[R(row,5)]=xlCell((gr.katsudo||[]).join("・"),{align:"left",fill,wrap:true});
+      ws[R(row,6)]=xlCell(gr.zentai||"",{align:"left",fill,wrap:true});
+      ws[R(row,7)]=xlCell(gr.jiko||"",{align:"left",fill,wrap:true});
+      ws[R(row,8)]=xlCell(gr.moshiokuri||"",{align:"left",fill,wrap:true});
+      row++;
     }
-    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
     ws["!cols"]=[{wch:8},{wch:6},{wch:6},{wch:20},{wch:8},{wch:24},{wch:30},{wch:12},{wch:30}];
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:COLS-1}}];
     XLSX.utils.book_append_sheet(wb,ws,"業務日誌");
     XLSX.writeFile(wb,`業務日誌_令和${year-2018}年${month}月.xlsx`);
   };
@@ -1528,20 +1692,43 @@ function App() {
   const exportSaibaiXLSX = (year, month) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
-    const header = ["日","曜","施設対応時間",...staff.map(s=>`🚗${s.name}`)];
-    const rows = [header];
+    const COLS = 3 + staff.length;
+    const ws = {};
+    const R = (r,c) => XLSX.utils.encode_cell({r,c});
+    let row = 0;
+    ws[R(row,0)]=xlCell(`采配簿　令和${year-2018}年${month}月　${JIGYOSHO_NAME}`,{bold:true,sz:11,fill:"2b6cb0",color:"FFFFFF",align:"left"});
+    for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"2b6cb0",color:"FFFFFF"});
+    row++;
+    const hdrs=["日","曜","🏫施設対応",...staff.map(s=>`🚗${s.name}`)];
+    hdrs.forEach((h,c)=>ws[R(row,c)]=xlHdr(h,c===2?"276749":"2b6cb0"));
+    row++;
     let totalFac=0; const staffTotals=staff.map(()=>0);
     for(let d=1;d<=daysInMon;d++){
       const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
       const dow=getDow(year,month,d);
+      const wkend=isWeekend(year,month,d);
       const facMins=getFacilityMins(dateStr);
       totalFac+=facMins;
-      const staffMins=staff.map((s,i)=>{const m=getDriverMins(s.id,dateStr);staffTotals[i]+=m;return m;});
-      rows.push([d,dow,minsToHHMM(facMins),...staffMins.map(minsToHHMM)]);
+      const fill=wkend?"fff8f0":undefined;
+      ws[R(row,0)]=xlCell(d,{bold:true,fill});
+      ws[R(row,1)]=xlCell(dow,{color:dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000",fill});
+      ws[R(row,2)]=xlCell(facMins>0?minsToHHMM(facMins):"",{fill:facMins>0?"e8fff0":fill});
+      staff.forEach((s,i)=>{
+        const m=getDriverMins(s.id,dateStr);
+        staffTotals[i]+=m;
+        ws[R(row,3+i)]=xlCell(m>0?minsToHHMM(m):"",{fill:m>0?"dbeafe":fill});
+      });
+      row++;
     }
-    rows.push(["合計","",minsToHHMM(totalFac),...staffTotals.map(minsToHHMM)]);
-    const ws=XLSX.utils.aoa_to_sheet(rows);
+    // 合計行
+    ws[R(row,0)]=xlCell("合計",{bold:true,fill:"f0f4f8"});
+    ws[R(row,1)]=xlCell("",{fill:"f0f4f8"});
+    ws[R(row,2)]=xlCell(minsToHHMM(totalFac),{bold:true,fill:"276749",color:"FFFFFF"});
+    staff.forEach((_,i)=>ws[R(row,3+i)]=xlCell(minsToHHMM(staffTotals[i]),{bold:true,fill:"2b6cb0",color:"FFFFFF"}));
+    row++;
+    ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
     ws["!cols"]=[{wch:4},{wch:4},{wch:12},...staff.map(()=>({wch:12}))];
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:COLS-1}}];
     XLSX.utils.book_append_sheet(wb,ws,"采配簿");
     XLSX.writeFile(wb,`采配簿_令和${year-2018}年${month}月.xlsx`);
   };
