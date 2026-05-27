@@ -880,9 +880,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
           const name = shussekiData[`${year}-${month}-${d}-${slot}-name`]||"";
           const time = shussekiData[`${year}-${month}-${d}-${slot}-time`]||"";
           const memo = shussekiData[`${year}-${month}-${d}-${slot}-memo`]||"";
-          const val = name ? `${name}${time?"
-"+time:""}${memo?"
-"+memo:""}` : "";
+          const val = name ? `${name}${time?"\n"+time:""}${memo?"\n"+memo:""}` : "";
           ws[R(row,ci+1)] = xlCell(val,{align:"center",wrap:true,fill:name?"ffffff":undefined});
         });
         row++;
