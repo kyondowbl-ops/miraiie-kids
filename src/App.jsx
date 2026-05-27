@@ -310,6 +310,28 @@ body{font-family:'Noto Sans JP',sans-serif;background:#eef2f7;color:#1a202c;min-
 .nav-tab.t-gyomu.active{border-bottom-color:#d69e2e;}
 .nav-tab.t-saibai.active{border-bottom-color:#2b6cb0;}
 .nav-tab.t-dl.active{border-bottom-color:#276749;}
+.nav-tab.t-shusseki.active{border-bottom-color:#d69e2e;}
+
+/* 出席予定表 */
+.shusseki-ctrl{background:white;border-radius:12px;padding:11px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.shusseki-wrap{overflow-x:auto;margin-bottom:14px;}
+.shusseki-table{border-collapse:collapse;font-size:11px;background:white;border:2px solid #333;}
+.shusseki-table th{padding:5px 4px;text-align:center;border:1px solid #666;font-weight:700;font-size:10px;white-space:nowrap;}
+.shusseki-table th.s-name{background:#c8d8e8;min-width:90px;font-size:10px;border-right:2px solid #555;}
+.shusseki-table th.s-sat{background:#b8cce4;color:#1a365d;}
+.shusseki-table th.s-sun{background:#e4b8b8;color:#742a2a;}
+.shusseki-table th.s-week{background:#d0dce8;}
+.shusseki-table td{border:1px solid #aaa;padding:0;height:68px;vertical-align:top;}
+.shusseki-table td.s-name-cell{font-size:10px;color:#555;padding:3px 6px;background:#efefef;min-width:90px;border-right:2px solid #666;vertical-align:middle;white-space:nowrap;}
+.shusseki-table td.s-sat{background:#eaf3fb;}
+.shusseki-table td.s-sun{background:#fbeeee;}
+.shusseki-table tr.s-week-sep th,.shusseki-table tr.s-week-sep-data td{border-top:2px solid #333!important;}
+.shusseki-table td.s-count{background:#e0e0e0;font-weight:700;font-size:11px;text-align:center;vertical-align:middle;height:24px!important;}
+.shusseki-table td.s-name-count{background:#d0d0d0;font-size:10px;padding:3px 6px;font-weight:700;border-right:2px solid #666;}
+.s-cell{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:68px;cursor:pointer;min-width:72px;padding:3px 2px;}
+.s-cell-name{font-size:12px;font-weight:700;color:#1a3a5c;line-height:1.3;text-align:center;padding:2px 0 2px;border-bottom:1px solid #e0e0e0;width:100%;margin-bottom:2px;}
+.s-cell-time{font-size:11px;color:#c05621;border:1px solid #fbd38d;border-radius:5px;background:#fffbeb;width:90%;text-align:center;padding:2px;cursor:pointer;font-family:inherit;margin:1px auto;display:block;}
+.s-cell-memo{font-size:10px;color:#553c9a;border:none;background:transparent;width:95%;text-align:center;outline:none;font-family:inherit;padding:0;}
 
 .content{padding:12px 12px;}
 
@@ -797,6 +819,134 @@ function App() {
   const minsToHHMM = (m) => {
     if (!m) return "0:00";
     return `${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`;
+  };
+
+  // 出席予定表用
+  const [shussekiYear,  setShussekiYear]  = useState(today.getFullYear());
+  const [shussekiMonth, setShussekiMonth] = useState(today.getMonth()+1);
+  const [shussekiData,  setShussekiData]  = useState({});
+
+  const setSD = (key, val) => setShussekiData(p => ({...p, [key]: val}));
+  const getSD = (d, slot, type) => shussekiData[`${shussekiYear}-${shussekiMonth}-${d}-${slot}-${type}`] || "";
+
+  const getShussekiWeeks = (y, m) => {
+    const days = getDaysInMonth(y, m);
+    const weeks = [];
+    let week = [];
+    for (let d = 1; d <= days; d++) {
+      const dow = new Date(y, m-1, d).getDay();
+      week.push({d, dow});
+      if (dow === 0 || d === days) { weeks.push([...week]); week = []; }
+    }
+    if (week.length) weeks.push(week);
+    return weeks;
+  };
+
+  const SHUSSEKI_TIMES = ["", ...Array.from({length:121},(_,i)=>{
+    const h = Math.floor(i/12)+9;
+    const m = (i%12)*5;
+    return h<=19?`${h}:${String(m).padStart(2,"0")}`:null;
+  }).filter(Boolean)];
+
+  const NUM_SLOTS = 13;
+
+  // 出席予定表 Excel出力
+  const exportShussekiXLSX = (year, month) => {
+    const wb = XLSX.utils.book_new();
+    const weeks = getShussekiWeeks(year, month);
+    weeks.forEach((week, wi) => {
+      const COLS = week.length + 1;
+      const ws = {};
+      const R = (r,c) => XLSX.utils.encode_cell({r,c});
+      let row = 0;
+      // タイトル
+      ws[R(row,0)] = xlCell(`令和${year-2018}年${month}月　出席予定　${week[0].d}日〜${week[week.length-1].d}日`,{bold:true,sz:11,fill:"1a3a5c",color:"FFFFFF",align:"left"});
+      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"1a3a5c",color:"FFFFFF"});
+      row++;
+      // ヘッダー
+      ws[R(row,0)] = xlHdr("出席児童名");
+      week.forEach(({d,dow},ci) => {
+        const dowStr = ["日","月","火","水","木","金","土"][dow];
+        const fill = dow===6?"2b5797":dow===0?"8B0000":"1a3a5c";
+        ws[R(row,ci+1)] = xlCell(`${d}
+${dowStr}`,{bold:true,fill,color:"FFFFFF"});
+      });
+      row++;
+      // データ行
+      for(let slot=0;slot<NUM_SLOTS;slot++){
+        ws[R(row,0)] = xlCell(`出席児童名 ${slot+1}`,{align:"left",fill:"f0f0f0"});
+        week.forEach(({d},ci) => {
+          const name = shussekiData[`${year}-${month}-${d}-${slot}-name`]||"";
+          const time = shussekiData[`${year}-${month}-${d}-${slot}-time`]||"";
+          const memo = shussekiData[`${year}-${month}-${d}-${slot}-memo`]||"";
+          const val = name ? `${name}${time?"
+"+time:""}${memo?"
+"+memo:""}` : "";
+          ws[R(row,ci+1)] = xlCell(val,{align:"center",wrap:true,fill:name?"ffffff":undefined});
+        });
+        row++;
+      }
+      // 集計行
+      ws[R(row,0)] = xlHdr("出席予定人数","276749");
+      week.forEach(({d},ci) => {
+        const cnt = Array.from({length:NUM_SLOTS},(_,i)=>shussekiData[`${year}-${month}-${d}-${i}-name`]||"").filter(Boolean).length;
+        ws[R(row,ci+1)] = xlCell(cnt>0?cnt:"",{bold:true,fill:"c6f6d5"});
+      });
+      row++;
+      ws["!ref"] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
+      ws["!cols"] = [{wch:14},...week.map(()=>({wch:12}))];
+      ws["!rows"] = [{hpt:16},{hpt:20},...Array(NUM_SLOTS).fill({hpt:40}),{hpt:16}];
+      XLSX.utils.book_append_sheet(wb, ws, `第${wi+1}週(${week[0].d}〜${week[week.length-1].d}日)`);
+    });
+    XLSX.writeFile(wb, `出席予定_令和${year-2018}年${month}月.xlsx`);
+  };
+
+  // 出席予定表 PDF印刷（週ごとにA4）
+  const printShusseki = (year, month) => {
+    const weeks = getShussekiWeeks(year, month);
+    let html = "";
+    weeks.forEach((week, wi) => {
+      html += `${wi>0?'<div style="page-break-before:always;"></div>':''}
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:#1a3a5c;">
+          令和${year-2018}年${month}月　出席予定　${week[0].d}日（${["日","月","火","水","木","金","土"][week[0].dow]}）〜${week[week.length-1].d}日（${["日","月","火","水","木","金","土"][week[week.length-1].dow]}）
+          <span style="font-size:10px;font-weight:400;margin-left:8px;">${JIGYOSHO_NAME}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <tr>
+            <th style="border:1px solid #333;padding:4px 6px;background:#1a3a5c;color:white;text-align:center;min-width:80px;">出席児童名</th>
+            ${week.map(({d,dow})=>{
+              const dn=["日","月","火","水","木","金","土"][dow];
+              const bg=dow===0?"#fdd":dow===6?"#ddf":"#e8e8e8";
+              return `<th style="border:1px solid #333;padding:4px;background:${bg};text-align:center;width:${100/week.length}%">
+                <div style="font-size:10px;">${dn}</div><div style="font-size:14px;font-weight:700;">${d}</div>
+              </th>`;
+            }).join("")}
+          </tr>
+          ${Array.from({length:NUM_SLOTS},(_,slot)=>{
+            return `<tr>
+              <td style="border:1px solid #ccc;padding:3px 5px;background:#f5f5f5;font-size:9px;color:#666;">出席児童名 ${slot+1}</td>
+              ${week.map(({d})=>{
+                const name=shussekiData[`${year}-${month}-${d}-${slot}-name`]||"";
+                const time=shussekiData[`${year}-${month}-${d}-${slot}-time`]||"";
+                const memo=shussekiData[`${year}-${month}-${d}-${slot}-memo`]||"";
+                return `<td style="border:1px solid #ccc;padding:3px;text-align:center;height:40px;vertical-align:middle;">
+                  ${name?`<div style="font-size:11px;font-weight:700;">${name}</div>`:""}
+                  ${time?`<div style="font-size:9px;color:#c05621;">${time}</div>`:""}
+                  ${memo?`<div style="font-size:9px;color:#553c9a;">${memo}</div>`:""}
+                </td>`;
+              }).join("")}
+            </tr>`;
+          }).join("")}
+          <tr>
+            <td style="border:1px solid #999;padding:3px 5px;background:#e8e8e8;font-size:9px;font-weight:700;">出席予定人数</td>
+            ${week.map(({d})=>{
+              const cnt=Array.from({length:NUM_SLOTS},(_,i)=>shussekiData[`${year}-${month}-${d}-${i}-name`]||"").filter(Boolean).length;
+              return `<td style="border:1px solid #999;padding:3px;text-align:center;background:#e8f5e9;font-weight:700;">${cnt>0?cnt:""}</td>`;
+            }).join("")}
+          </tr>
+        </table>`;
+    });
+    printHTML(html, `出席予定_令和${year-2018}年${month}月`);
   };
 
   // ダウンロード用
@@ -2328,6 +2478,7 @@ function App() {
             { key:"gyomu",   label:"📔 業務日誌",   cls:"t-gyomu"   },
             { key:"saibai",  label:"📊 采配簿",     cls:"t-saibai"  },
             { key:"master",  label:"⚙️ 名簿管理",  cls:"t-master"  },
+            { key:"shusseki", label:"📅 出席予定", cls:"t-shusseki" },
             { key:"dl",      label:"📥 ダウンロード", cls:"t-dl"      },
           ].map(t => (
             <button key={t.key} className={`nav-tab ${t.cls} ${tab===t.key?"active":""}`} onClick={()=>setTab(t.key)}>
@@ -3649,6 +3800,147 @@ function App() {
 
 
           {/* ===================================================
+              出席予定表
+          =================================================== */}
+          {tab === "shusseki" && (() => {
+            const weeks = getShussekiWeeks(shussekiYear, shussekiMonth);
+            const DOW_LABELS = ["日","月","火","水","木","金","土"];
+            const [activePopup, setActivePopup] = useState(null); // {d, slot}
+
+            return (
+              <>
+                {/* コントロール */}
+                <div className="shusseki-ctrl">
+                  <select className="msel" value={shussekiYear} onChange={e=>setShussekiYear(Number(e.target.value))}>
+                    {[today.getFullYear()-1,today.getFullYear(),today.getFullYear()+1].map(y=>
+                      <option key={y} value={y}>令和{y-2018}年（{y}）</option>
+                    )}
+                  </select>
+                  <select className="msel" value={shussekiMonth} onChange={e=>setShussekiMonth(Number(e.target.value))}>
+                    {Array.from({length:12},(_,i)=>i+1).map(m=><option key={m} value={m}>{m}月</option>)}
+                  </select>
+                  <span style={{fontSize:13,fontWeight:700,color:"#d69e2e",marginLeft:4}}>
+                    令和{shussekiYear-2018}年{shussekiMonth}月　出席予定
+                  </span>
+                  <button className="dl-btn-pdf" style={{marginLeft:"auto"}} onClick={()=>printShusseki(shussekiYear,shussekiMonth)}>
+                    🖨️ PDF印刷（週ごとA4）
+                  </button>
+                </div>
+
+                {/* 名前選択ポップアップ */}
+                {activePopup && (
+                  <>
+                    <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.4)",zIndex:999}}
+                      onClick={()=>setActivePopup(null)}/>
+                    <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+                      background:"white",border:"2px solid #1a3a5c",borderRadius:12,padding:14,
+                      zIndex:1000,minWidth:200,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 4px 20px rgba(0,0,0,.3)"}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1a3a5c",marginBottom:8,paddingBottom:6,borderBottom:"1px solid #eee"}}>
+                        {shussekiMonth}月{activePopup.d}日　スロット{activePopup.slot+1}
+                      </div>
+                      {children.map(c=>{
+                        const k=`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-name`;
+                        const isSelected=shussekiData[k]===c.name;
+                        return (
+                          <button key={c.id}
+                            style={{display:"block",width:"100%",textAlign:"left",padding:"8px 10px",
+                              border:"none",background:isSelected?"#dbeafe":"none",
+                              fontSize:13,cursor:"pointer",borderRadius:6,fontFamily:"inherit",
+                              fontWeight:isSelected?700:400,color:isSelected?"#1a3a5c":"#333"}}
+                            onClick={()=>{setSD(k,c.name);setActivePopup(null);}}>
+                            {c.name}
+                          </button>
+                        );
+                      })}
+                      <button
+                        style={{display:"block",width:"100%",textAlign:"left",padding:"8px 10px",
+                          border:"none",background:"none",fontSize:13,cursor:"pointer",
+                          borderRadius:6,fontFamily:"inherit",color:"#e53e3e",
+                          borderTop:"1px solid #eee",marginTop:4}}
+                        onClick={()=>{
+                          const k=`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-name`;
+                          setSD(k,"");
+                          setSD(`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-time`,"");
+                          setSD(`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-memo`,"");
+                          setActivePopup(null);
+                        }}>
+                        （削除）
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* 週ごとのテーブル */}
+                {weeks.map((week, wi) => (
+                  <div key={wi} className="shusseki-wrap">
+                    <table className="shusseki-table" style={{width:"100%"}}>
+                      <thead>
+                        <tr className={wi>0?"s-week-sep":""}>
+                          <th className="s-name">出席児童名</th>
+                          {week.map(({d,dow})=>(
+                            <th key={d} className={dow===6?"s-sat":dow===0?"s-sun":"s-week"}
+                              style={{minWidth:dow===0||dow===6?"44px":"80px"}}>
+                              <div style={{fontSize:10}}>{DOW_LABELS[dow]}</div>
+                              <div style={{fontSize:14,fontWeight:700}}>{d}</div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({length:NUM_SLOTS},(_,slot)=>(
+                          <tr key={slot} className={wi>0?"s-week-sep-data":""}>
+                            <td className="s-name-cell">
+                              <span style={{color:"#aaa",fontSize:9}}>出席児童名 {slot+1}</span>
+                            </td>
+                            {week.map(({d,dow})=>{
+                              const name=getSD(d,slot,"name");
+                              const time=getSD(d,slot,"time");
+                              const memo=getSD(d,slot,"memo");
+                              const kTime=`${shussekiYear}-${shussekiMonth}-${d}-${slot}-time`;
+                              const kMemo=`${shussekiYear}-${shussekiMonth}-${d}-${slot}-memo`;
+                              return (
+                                <td key={d} className={dow===6?"s-sat":dow===0?"s-sun":""}>
+                                  <div className="s-cell"
+                                    style={{minWidth:dow===0||dow===6?"44px":"80px"}}
+                                    onClick={()=>setActivePopup({d,slot})}>
+                                    {name && <div className="s-cell-name">{name}</div>}
+                                    {name && (
+                                      <select className="s-cell-time" value={time}
+                                        onChange={e=>{e.stopPropagation();setSD(kTime,e.target.value);}}
+                                        onClick={e=>e.stopPropagation()}>
+                                        {SHUSSEKI_TIMES.map(t=><option key={t} value={t}>{t||"時刻"}</option>)}
+                                      </select>
+                                    )}
+                                    {name && (
+                                      <input className="s-cell-memo" placeholder="メモ" value={memo}
+                                        onChange={e=>setSD(kMemo,e.target.value)}
+                                        onClick={e=>e.stopPropagation()}/>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                        {/* 集計行 */}
+                        <tr>
+                          <td className="s-name-count">出席予定人数</td>
+                          {week.map(({d})=>{
+                            const cnt=Array.from({length:NUM_SLOTS},(_,i)=>
+                              shussekiData[`${shussekiYear}-${shussekiMonth}-${d}-${i}-name`]||""
+                            ).filter(Boolean).length;
+                            return <td key={d} className="s-count">{cnt>0?cnt:""}</td>;
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
+
+          {/* ===================================================
               ダウンロード
           =================================================== */}
           {tab === "dl" && (() => {
@@ -3748,6 +4040,17 @@ function App() {
                     <button className="dl-btn-xlsx" onClick={()=>exportSaibaiXLSX(dlYear,dlMonth)}>📥 Excel (.xlsx)</button>
                     <button className="dl-btn-csv"  onClick={()=>exportSaibaiCSV(dlYear,dlMonth)}>📄 CSV</button>
                     <button className="dl-btn-pdf"  onClick={()=>printSaibai(dlYear,dlMonth)}>🖨️ PDF印刷</button>
+                  </div>
+                </>
+              },
+              {
+                title:"出席予定表",icon:"📅",color:"#d69e2e",
+                body: <>
+                  <YearMonthSel/>
+                  <div className="dl-divider"/>
+                  <div className="dl-row">
+                    <button className="dl-btn-xlsx" style={{background:"#d69e2e"}} onClick={()=>exportShussekiXLSX(dlYear,dlMonth)}>📥 Excel (.xlsx)</button>
+                    <button className="dl-btn-pdf" onClick={()=>printShusseki(dlYear,dlMonth)}>🖨️ PDF印刷（週ごとA4）</button>
                   </div>
                 </>
               },
