@@ -1324,8 +1324,15 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
     s: {
       font: {sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
       alignment: {horizontal:opts.align||"center", vertical:"center", wrapText:opts.wrap||false},
-      border: opts.thick ? XL_BORDER_MED : XL_BORDER,
-      ...(opts.fill?{fill:{fgColor:{rgb:opts.fill},patternType:"solid"}}:{}),
+      border: {
+        top:    {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
+        bottom: {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
+        left:   {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
+        right:  {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
+      },
+      fill: opts.fill
+        ? {patternType:"solid", fgColor:{rgb:opts.fill}, bgColor:{rgb:"FFFFFF"}}
+        : {patternType:"none"},
     }
   });
   const xlHdr = (v, fill="1a3a5c") => xlCell(v, {bold:true, color:"FFFFFF", fill});
