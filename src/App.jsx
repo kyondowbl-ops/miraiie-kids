@@ -1324,15 +1324,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
     s: {
       font: {sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
       alignment: {horizontal:opts.align||"center", vertical:"center", wrapText:opts.wrap||false},
-      border: {
-        top:    {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
-        bottom: {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
-        left:   {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
-        right:  {style:opts.thick?"medium":"thin", color:{rgb:"000000"}},
-      },
-      fill: opts.fill
-        ? {patternType:"solid", fgColor:{rgb:opts.fill}, bgColor:{rgb:"FFFFFF"}}
-        : {patternType:"none"},
+      border: opts.thick ? XL_BORDER_MED : XL_BORDER,
+      ...(opts.fill?{fill:{fgColor:{rgb:opts.fill},patternType:"solid"}}:{}),
     }
   });
   const xlHdr = (v, fill="1a3a5c") => xlCell(v, {bold:true, color:"FFFFFF", fill});
@@ -3904,7 +3897,23 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                               const kTime=`${shussekiYear}-${shussekiMonth}-${d}-${slot}-time`;
                               const kMemo=`${shussekiYear}-${shussekiMonth}-${d}-${slot}-memo`;
                               return (
-                                <td key={d} className={dow===6?"s-sat":dow===0?"s-sun":""}>
+                                <td key={d} className={dow===6?"s-sat":dow===0?"s-sun":""} style={{position:"relative"}}>
+                                  {/* ×削除ボタン */}
+                                  {name && (
+                                    <button
+                                      style={{position:"absolute",top:1,right:1,width:16,height:16,
+                                        border:"none",borderRadius:"50%",background:"#fc8181",color:"white",
+                                        fontSize:9,fontWeight:700,cursor:"pointer",zIndex:10,
+                                        display:"flex",alignItems:"center",justifyContent:"center",
+                                        padding:0,lineHeight:1,fontFamily:"inherit"}}
+                                      onClick={e=>{
+                                        e.stopPropagation();
+                                        const kName=`${shussekiYear}-${shussekiMonth}-${d}-${slot}-name`;
+                                        setSD(kName,"");
+                                        setSD(kTime,"");
+                                        setSD(kMemo,"");
+                                      }}>×</button>
+                                  )}
                                   <div className="s-cell"
                                     style={{minWidth:dow===0||dow===6?"44px":"80px"}}
                                     onClick={()=>setShussekiActivePopup({d,slot})}>
