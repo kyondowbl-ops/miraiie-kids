@@ -823,6 +823,7 @@ function App() {
 
   // 出席予定表用
   const [shussekiYear,  setShussekiYear]  = useState(today.getFullYear());
+  const [shussekiActivePopup, setShussekiActivePopup] = useState(null);
   const [shussekiMonth, setShussekiMonth] = useState(today.getMonth()+1);
   const [shussekiData,  setShussekiData]  = useState({});
 
@@ -3805,7 +3806,6 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
           {tab === "shusseki" && (() => {
             const weeks = getShussekiWeeks(shussekiYear, shussekiMonth);
             const DOW_LABELS = ["日","月","火","水","木","金","土"];
-            const [activePopup, setActivePopup] = useState(null); // {d, slot}
 
             return (
               <>
@@ -3828,18 +3828,18 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 </div>
 
                 {/* 名前選択ポップアップ */}
-                {activePopup && (
+                {shussekiActivePopup && (
                   <>
                     <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.4)",zIndex:999}}
-                      onClick={()=>setActivePopup(null)}/>
+                      onClick={()=>setShussekiActivePopup(null)}/>
                     <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
                       background:"white",border:"2px solid #1a3a5c",borderRadius:12,padding:14,
                       zIndex:1000,minWidth:200,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 4px 20px rgba(0,0,0,.3)"}}>
                       <div style={{fontSize:12,fontWeight:700,color:"#1a3a5c",marginBottom:8,paddingBottom:6,borderBottom:"1px solid #eee"}}>
-                        {shussekiMonth}月{activePopup.d}日　スロット{activePopup.slot+1}
+                        {shussekiMonth}月{shussekiActivePopup.d}日　スロット{shussekiActivePopup.slot+1}
                       </div>
                       {children.map(c=>{
-                        const k=`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-name`;
+                        const k=`${shussekiYear}-${shussekiMonth}-${shussekiActivePopup.d}-${shussekiActivePopup.slot}-name`;
                         const isSelected=shussekiData[k]===c.name;
                         return (
                           <button key={c.id}
@@ -3847,7 +3847,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                               border:"none",background:isSelected?"#dbeafe":"none",
                               fontSize:13,cursor:"pointer",borderRadius:6,fontFamily:"inherit",
                               fontWeight:isSelected?700:400,color:isSelected?"#1a3a5c":"#333"}}
-                            onClick={()=>{setSD(k,c.name);setActivePopup(null);}}>
+                            onClick={()=>{setSD(k,c.name);setShussekiActivePopup(null);}}>
                             {c.name}
                           </button>
                         );
@@ -3858,11 +3858,11 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                           borderRadius:6,fontFamily:"inherit",color:"#e53e3e",
                           borderTop:"1px solid #eee",marginTop:4}}
                         onClick={()=>{
-                          const k=`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-name`;
+                          const k=`${shussekiYear}-${shussekiMonth}-${shussekiActivePopup.d}-${shussekiActivePopup.slot}-name`;
                           setSD(k,"");
-                          setSD(`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-time`,"");
-                          setSD(`${shussekiYear}-${shussekiMonth}-${activePopup.d}-${activePopup.slot}-memo`,"");
-                          setActivePopup(null);
+                          setSD(`${shussekiYear}-${shussekiMonth}-${shussekiActivePopup.d}-${shussekiActivePopup.slot}-time`,"");
+                          setSD(`${shussekiYear}-${shussekiMonth}-${shussekiActivePopup.d}-${shussekiActivePopup.slot}-memo`,"");
+                          setShussekiActivePopup(null);
                         }}>
                         （削除）
                       </button>
@@ -3902,7 +3902,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                                 <td key={d} className={dow===6?"s-sat":dow===0?"s-sun":""}>
                                   <div className="s-cell"
                                     style={{minWidth:dow===0||dow===6?"44px":"80px"}}
-                                    onClick={()=>setActivePopup({d,slot})}>
+                                    onClick={()=>setShussekiActivePopup({d,slot})}>
                                     {name && <div className="s-cell-name">{name}</div>}
                                     {name && (
                                       <select className="s-cell-time" value={time}
