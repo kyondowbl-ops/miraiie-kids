@@ -827,7 +827,25 @@ function App() {
   const [shussekiMonth, setShussekiMonth] = useState(today.getMonth()+1);
   const [shussekiData,  setShussekiData]  = useState({});
 
-  const setSD = (key, val) => setShussekiData(p => ({...p, [key]: val}));
+  const setSD = (key, val) => {
+    setShussekiData(p => {
+      const next = { ...p, [key]: val };
+      if (supabase) {
+        // キーから年月を抽出して月単位で保存 (key形式: "YYYY-M-d-slot-type")
+        const parts = key.split("-");
+        const dataKey = `shusseki-${parts[0]}-${parts[1]}`;
+        const monthPrefix = `${parts[0]}-${parts[1]}-`;
+        const monthData = Object.fromEntries(
+          Object.entries(next).filter(([k]) => k.startsWith(monthPrefix))
+        );
+        setSyncing(true);
+        dbUpsert("shusseki_data", "data_key", dataKey, monthData)
+          .catch(() => setSyncError(true))
+          .finally(() => setSyncing(false));
+      }
+      return next;
+    });
+  };
   const getSD = (d, slot, type) => shussekiData[`${shussekiYear}-${shussekiMonth}-${d}-${slot}-${type}`] || "";
 
   const getShussekiWeeks = (y, m) => {
@@ -1083,6 +1101,17 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
           gyomuData.forEach(row => { newGyomu[row.date_str] = row.data; });
           setGyomuRecords(newGyomu);
         }
+        // 出席予定表
+        const shussekiDbData = await dbLoad("shusseki_data");
+        if (shussekiDbData) {
+          const newShusseki = {};
+          shussekiDbData.forEach(row => {
+            if (row.data && typeof row.data === "object") {
+              Object.assign(newShusseki, row.data);
+            }
+          });
+          setShussekiData(newShusseki);
+        }
         // 名簿
         const masterData = await dbLoad("master_data");
         if (masterData) {
@@ -1106,7 +1135,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
   // リアルタイム購読（他のスタッフの変更を受信）
   useEffect(() => {
     if (!supabase) return;
-    const tables = ["schedule","overrides","kojin_records","joko_overrides","gyomu_records","master_data"];
+    const tables = ["schedule","overrides","kojin_records","joko_overrides","gyomu_records","master_data","shusseki_data"];
     const subs = tables.map(table =>
       supabase.channel(`realtime-${table}`)
         .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
@@ -1125,6 +1154,11 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
           if (table==="kojin_records") setKojinRecords(p=>({...p,[row.record_key]:row.data}));
           if (table==="joko_overrides")setJokoOverrides(p=>({...p,[row.ov_key]:row.data}));
           if (table==="gyomu_records") setGyomuRecords(p=>({...p,[row.date_str]:row.data}));
+          if (table==="shusseki_data") {
+            if (row.data && typeof row.data === "object") {
+              setShussekiData(p => ({ ...p, ...row.data }));
+            }
+          }
           if (table==="master_data") {
             if (row.data_key==="children") setChildren(row.data);
             if (row.data_key==="staff")    setStaff(row.data);
