@@ -1569,80 +1569,236 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
     downloadCSV(rows, `送迎表_令和${year-2018}年${month}月.csv`);
   };
 
-  // 実績記録 Excel（子ども別）
+  // 実績記録 Excel（子ども別）- 紙書式準拠
   const exportJissekiXLSX = (year, month, childId) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
     const targetChildren = childId === "all" ? children : children.filter(c=>c.id===Number(childId));
+
     targetChildren.forEach(child => {
       const ws = {};
       const R = (r,c) => XLSX.utils.encode_cell({r,c});
+      const merges = [];
       let row = 0;
-      const COLS = 12;
-      // タイトル
-      ws[R(row,0)] = xlCell(`令和${year-2018}年${month}月分　放課後等デイサービス提供実績記録票`,{bold:true,sz:12,fill:"1a3a5c",color:"FFFFFF",align:"left"});
-      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"1a3a5c",color:"FFFFFF"});
+      const N = 19;
+      const thin = {style:"thin", color:{rgb:"000000"}};
+      const bAll = {top:thin,right:thin,bottom:thin,left:thin};
+
+      const C = (v, opts={}) => ({
+        v: v??'', t:'s',
+        s:{
+          font:{sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
+          alignment:{horizontal:opts.align||"center", vertical:"center", wrapText:true},
+          border:bAll,
+          fill:{patternType:"solid", fgColor:{rgb:opts.fill||"FFFFFF"}, bgColor:{rgb:"FFFFFF"}},
+        }
+      });
+
+      // ===== 行0: タイトル =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C(`令和${year-2018}年${month}月分`,{sz:11,bold:true,align:"left"});
+      ws[R(row,5)]=C("放課後等デイサービス提供実績記録票",{sz:13,bold:true,align:"center"});
+      ws[R(row,15)]=C("事業所番号",{sz:8,align:"center"});
+      ws[R(row,16)]=C(JIGYOSHO_NO,{sz:9,align:"center"});
+      merges.push(
+        {s:{r:0,c:0},e:{r:0,c:4}},
+        {s:{r:0,c:5},e:{r:0,c:14}},
+        {s:{r:0,c:15},e:{r:0,c:15}},
+        {s:{r:0,c:16},e:{r:0,c:18}},
+      );
       row++;
-      // 受給者情報
-      const infoFill = "f0f4f8";
-      ws[R(row,0)] = xlCell(`受給者証番号：${child.jukyuNo||""}`,{align:"left",fill:infoFill});
-      ws[R(row,1)] = xlCell("",{fill:infoFill});
-      ws[R(row,2)] = xlCell(`給付決定保護者氏名：${child.name}`,{align:"left",fill:infoFill});
-      for(let c=3;c<=6;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
-      ws[R(row,7)] = xlCell(`事業所：${JIGYOSHO_NAME}`,{align:"left",fill:infoFill});
-      for(let c=8;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
+
+      // ===== 行1: 受給者証番号・氏名・事業者名 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C("受給者証\n番　号",{sz:8,align:"center"});
+      ws[R(row,1)]=C(child.jukyuNo||"",{sz:9,align:"center"});
+      ws[R(row,3)]=C("給付決定保護者氏名\n（障害児氏名）",{sz:8,align:"center"});
+      ws[R(row,5)]=C(child.name,{sz:12,bold:true,align:"center"});
+      ws[R(row,11)]=C("事業者\n及び\n事業者名",{sz:8,align:"center"});
+      ws[R(row,12)]=C(JIGYOSHO_NAME,{sz:11,bold:true,align:"center"});
+      merges.push(
+        {s:{r:1,c:0},e:{r:2,c:0}},
+        {s:{r:1,c:1},e:{r:2,c:2}},
+        {s:{r:1,c:3},e:{r:2,c:4}},
+        {s:{r:1,c:5},e:{r:2,c:10}},
+        {s:{r:1,c:11},e:{r:3,c:11}},
+        {s:{r:1,c:12},e:{r:3,c:18}},
+      );
       row++;
-      ws[R(row,0)] = xlCell(`契約支給量：${child.keiyakuDays||10}日/月　区分：${child.kubun||2}　事業所番号：${JIGYOSHO_NO}`,{align:"left",fill:infoFill});
-      for(let c=1;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:infoFill});
+
+      // ===== 行2: 契約支給量 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C("契約支給量",{sz:8,align:"center"});
+      ws[R(row,1)]=C(`${child.keiyakuDays||10}日／月`,{sz:10,align:"center"});
+      merges.push(
+        {s:{r:2,c:0},e:{r:3,c:0}},
+        {s:{r:2,c:1},e:{r:3,c:10}},
+      );
       row++;
-      // ヘッダー
-      const hdrs = ["日","曜","状況","形態","区分","開始時間","終了時間","算定時間数","滞在時間","送迎(住)","送迎(便)","備考"];
-      hdrs.forEach((h,c) => ws[R(row,c)] = xlHdr(h));
+
+      // ===== 行3: マージ続き =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
       row++;
-      // データ行（出席日のみ）
-      let presentCount=0;
-      for (let d = 1; d <= daysInMon; d++) {
-        const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-        const dow = getDow(year, month, d);
-        const wkend = isWeekend(year, month, d);
-        const linked = deriveJisseki(dateStr, child.id, schedule);
-        const ov     = overrides[`${child.id}-${year}-${month}-${d}`]||{};
-        const hasLinked = linked.startTime||linked.endTime;
-        const attend = ov.attend!==undefined ? ov.attend : (hasLinked?"present":"");
-        if (attend !== "present") continue;
-        const s = ov.timeStart||linked.startTime||"";
-        const e = ov.timeEnd  ||linked.endTime  ||"";
-        const santei = ov.santeiManual!==undefined ? ov.santeiManual : calcSantei(s,e);
-        const fill = wkend?"fff8f0":undefined;
-        const dowColor = dow==="日"?"e53e3e":dow==="土"?"3182ce":"000000";
-        presentCount++;
-        ws[R(row,0)]  = xlCell(d,{bold:true,fill});
-        ws[R(row,1)]  = xlCell(dow,{color:dowColor,fill});
-        ws[R(row,2)]  = xlCell("○",{fill:"e6ffe6"});
-        ws[R(row,3)]  = xlCell(ov.keitai||"1",{fill});
-        ws[R(row,4)]  = xlCell(ov.kubun||child.kubun||"2",{fill});
-        ws[R(row,5)]  = xlCell(s,{fill});
-        ws[R(row,6)]  = xlCell(e,{fill});
-        ws[R(row,7)]  = xlCell(santei,{fill});
-        ws[R(row,8)]  = xlCell(calcZaitai(s,e),{fill});
-        ws[R(row,9)]  = xlCell((ov.soJu!==undefined?ov.soJu:linked.soJu)?"1":"",{fill});
-        ws[R(row,10)] = xlCell((ov.soBin!==undefined?ov.soBin:linked.soBin)?"1":"",{fill});
-        ws[R(row,11)] = xlCell(ov.note||"",{align:"left",fill});
+
+      // ===== 行4: ヘッダー大分類 =====
+      const FH="DDEEFF";
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:FH});
+      ws[R(row,0)]=C("日\n付",{sz:9,fill:FH});
+      ws[R(row,1)]=C("曜\n日",{sz:9,fill:FH});
+      ws[R(row,2)]=C("サービス提供実績",{sz:9,fill:FH});
+      ws[R(row,17)]=C("保護者等\n確認欄",{sz:8,fill:FH});
+      ws[R(row,18)]=C("備考",{sz:9,fill:FH});
+      merges.push(
+        {s:{r:4,c:0},e:{r:6,c:0}},
+        {s:{r:4,c:1},e:{r:6,c:1}},
+        {s:{r:4,c:2},e:{r:4,c:16}},
+        {s:{r:4,c:17},e:{r:6,c:17}},
+        {s:{r:4,c:18},e:{r:6,c:18}},
+      );
+      row++;
+
+      // ===== 行5: ヘッダー中分類 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:FH});
+      ws[R(row,2)] =C("サービス提供の\n状況",{sz:8,fill:FH});
+      ws[R(row,3)] =C("提供\n形態",{sz:8,fill:FH});
+      ws[R(row,4)] =C("区分",{sz:8,fill:FH});
+      ws[R(row,5)] =C("開始\n時間",{sz:8,fill:FH});
+      ws[R(row,6)] =C("終了\n時間",{sz:8,fill:FH});
+      ws[R(row,7)] =C("算定\n時間数",{sz:8,fill:FH});
+      ws[R(row,8)] =C("滞在\n時間",{sz:8,fill:FH});
+      ws[R(row,9)] =C("送迎加算",{sz:8,fill:FH});
+      ws[R(row,11)]=C("家族\n支援加算",{sz:7,fill:FH});
+      ws[R(row,12)]=C("延長\n支援加算",{sz:7,fill:FH});
+      ws[R(row,13)]=C("専門的支援加算\n(支援実施時)",{sz:6,fill:FH});
+      ws[R(row,14)]=C("通所自立\n支援加算",{sz:7,fill:FH});
+      ws[R(row,15)]=C("自立\nサポート加算",{sz:7,fill:FH});
+      ws[R(row,16)]=C("関係機関\n連携",{sz:7,fill:FH});
+      merges.push(
+        {s:{r:5,c:2},e:{r:6,c:2}},
+        {s:{r:5,c:3},e:{r:6,c:3}},
+        {s:{r:5,c:4},e:{r:6,c:4}},
+        {s:{r:5,c:5},e:{r:6,c:5}},
+        {s:{r:5,c:6},e:{r:6,c:6}},
+        {s:{r:5,c:7},e:{r:6,c:7}},
+        {s:{r:5,c:8},e:{r:6,c:8}},
+        {s:{r:5,c:9},e:{r:5,c:10}},
+        {s:{r:5,c:11},e:{r:6,c:11}},
+        {s:{r:5,c:12},e:{r:6,c:12}},
+        {s:{r:5,c:13},e:{r:6,c:13}},
+        {s:{r:5,c:14},e:{r:6,c:14}},
+        {s:{r:5,c:15},e:{r:6,c:15}},
+        {s:{r:5,c:16},e:{r:6,c:16}},
+      );
+      row++;
+
+      // ===== 行6: 往/復 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:FH});
+      ws[R(row,9)] =C("往",{sz:8,fill:FH});
+      ws[R(row,10)]=C("復",{sz:8,fill:FH});
+      row++;
+
+      // ===== データ行 =====
+      const DOWS=["日","月","火","水","木","金","土"];
+      const firstDow=new Date(year, month-1, 1).getDay();
+      let totSoJu=0,totSoBin=0,totKazoku=0,totEnchyo=0,totSenmon=0,totTsuusho=0,totJiritsu=0,totKankei=0;
+
+      for(let d=1;d<=daysInMon;d++){
+        const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        const dow=DOWS[(firstDow+d-1)%7];
+        const isSat=dow==="土",isSun=dow==="日";
+        const bf=isSat?"EBF8FF":isSun?"FFF5F5":"FFFFFF";
+        const dc=isSat?"2b6cb0":isSun?"c53030":"000000";
+        const linked=deriveJisseki(dateStr,child.id,schedule);
+        const ov=overrides[`${child.id}-${year}-${month}-${d}`]||{};
+        const hasLinked=linked.startTime||linked.endTime;
+        const attend=ov.attend!==undefined?ov.attend:(hasLinked?"present":"");
+
+        for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:bf});
+        ws[R(row,0)]=C(String(d),{bold:true,fill:bf,color:dc});
+        ws[R(row,1)]=C(dow,{fill:bf,color:dc});
+
+        if(attend==="present"){
+          const s=ov.timeStart||linked.startTime||"";
+          const e=ov.timeEnd||linked.endTime||"";
+          const santei=ov.santeiManual!==undefined?ov.santeiManual:calcSantei(s,e);
+          const soJu=(ov.soJu!==undefined?ov.soJu:linked.soJu)?true:false;
+          const soBin=(ov.soBin!==undefined?ov.soBin:linked.soBin)?true:false;
+          ws[R(row,2)]=C("○",{fill:"E8F5E9"});
+          ws[R(row,3)]=C(ov.keitai||"1",{fill:bf});
+          ws[R(row,4)]=C(ov.kubun||child.kubun||"2",{fill:bf});
+          ws[R(row,5)]=C(s,{fill:bf});
+          ws[R(row,6)]=C(e,{fill:bf});
+          ws[R(row,7)]=C(String(santei||""),{fill:bf});
+          ws[R(row,8)]=C(calcZaitai(s,e),{fill:bf});
+          if(soJu){  ws[R(row,9)] =C("1",{fill:"D4EDDA"}); totSoJu++; }
+          if(soBin){ ws[R(row,10)]=C("1",{fill:"D4EDDA"}); totSoBin++; }
+          if(ov.kazoku){ ws[R(row,11)]=C("回",{fill:"D4EDDA"}); totKazoku++; }
+          if(ov.enchyo){ ws[R(row,12)]=C("回",{fill:"D4EDDA"}); totEnchyo++; }
+          if(ov.senmon){ ws[R(row,13)]=C("回",{fill:"D4EDDA"}); totSenmon++; }
+          if(ov.iryo){   ws[R(row,14)]=C("回",{fill:"D4EDDA"}); totTsuusho++; }
+          if(ov.jiritsu){ws[R(row,15)]=C("回",{fill:"D4EDDA"}); totJiritsu++; }
+          if(ov.kankei){ ws[R(row,16)]=C("回",{fill:"D4EDDA"}); totKankei++; }
+          if(ov.signed){ ws[R(row,17)]=C("印",{fill:"E8F5E9"}); }
+          if(ov.note){   ws[R(row,18)]=C(ov.note,{fill:bf,align:"left"}); }
+        }
         row++;
       }
-      // 合計行
-      ws[R(row,0)] = xlCell("合計",{bold:true,fill:"f0f4f8"});
-      ws[R(row,1)] = xlCell(`${presentCount}日`,{bold:true,fill:"f0f4f8"});
-      for(let c=2;c<COLS;c++) ws[R(row,c)]=xlCell("",{fill:"f0f4f8"});
+
+      // ===== 合計行 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:"F2F2F2"});
+      ws[R(row,0)]=C("合計",{sz:9,fill:"F2F2F2",align:"left"});
+      ws[R(row,9)] =C(totSoJu  ?`${totSoJu}回`:"回",  {fill:"F2F2F2"});
+      ws[R(row,10)]=C(totSoBin ?`${totSoBin}回`:"回", {fill:"F2F2F2"});
+      ws[R(row,11)]=C(totKazoku?`${totKazoku}回`:"回",{fill:"F2F2F2"});
+      ws[R(row,12)]=C(totEnchyo?`${totEnchyo}回`:"回",{fill:"F2F2F2"});
+      ws[R(row,13)]=C(totSenmon?`${totSenmon}回`:"回",{fill:"F2F2F2"});
+      ws[R(row,14)]=C(totTsuusho?`${totTsuusho}回`:"回",{fill:"F2F2F2"});
+      ws[R(row,15)]=C(totJiritsu?`${totJiritsu}回`:"回",{fill:"F2F2F2"});
+      ws[R(row,16)]=C(totKankei?`${totKankei}回`:"回", {fill:"F2F2F2"});
+      merges.push({s:{r:row,c:0},e:{r:row,c:8}});
       row++;
-      ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:COLS-1}});
-      ws["!cols"]=[{wch:4},{wch:4},{wch:6},{wch:6},{wch:6},{wch:8},{wch:8},{wch:8},{wch:8},{wch:7},{wch:7},{wch:20}];
-      ws["!merges"]=[
-        {s:{r:0,c:0},e:{r:0,c:COLS-1}},
-        {s:{r:1,c:0},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:6}},{s:{r:1,c:7},e:{r:1,c:COLS-1}},
-        {s:{r:2,c:0},e:{r:2,c:COLS-1}},
+
+      // ===== 空行 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C(""); row++;
+
+      // ===== 保育・教育等移行支援加算 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C("保育・教育等移行支援加算",{sz:8,align:"left"});
+      ws[R(row,4)]=C("移行日",{sz:8});
+      ws[R(row,9)]=C("移行後算定日",{sz:8});
+      merges.push({s:{r:row,c:0},e:{r:row,c:3}},{s:{r:row,c:4},e:{r:row,c:8}},{s:{r:row,c:9},e:{r:row,c:18}});
+      row++;
+
+      // ===== 集中的支援加算 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C("集中的支援加算",{sz:8,align:"left"});
+      ws[R(row,4)]=C("支援開始日",{sz:8});
+      merges.push({s:{r:row,c:0},e:{r:row,c:3}},{s:{r:row,c:4},e:{r:row,c:18}});
+      row++;
+
+      // ===== 枚中/枚 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,15)]=C("枚中",{sz:8});
+      ws[R(row,17)]=C("枚",{sz:8});
+      merges.push({s:{r:row,c:0},e:{r:row,c:14}},{s:{r:row,c:15},e:{r:row,c:16}},{s:{r:row,c:17},e:{r:row,c:18}});
+      row++;
+
+      ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:N-1}});
+      ws["!cols"]=[
+        {wch:10},{wch:10},{wch:12},{wch:10},{wch:5},
+        {wch:8},{wch:8},{wch:8},{wch:8},
+        {wch:6},{wch:6},
+        {wch:10},{wch:10},{wch:12},{wch:11},{wch:12},{wch:10},
+        {wch:11},{wch:24},
       ];
-      ws["!rows"]=[{hpt:18},{hpt:15},{hpt:15},{hpt:20},...Array(presentCount+1).fill({hpt:16})];
+      ws["!rows"]=[
+        {hpt:22},
+        {hpt:32},{hpt:22},{hpt:22},
+        {hpt:14},{hpt:36},{hpt:16},
+        ...Array(daysInMon).fill({hpt:20}),
+        {hpt:18},{hpt:6},{hpt:16},{hpt:16},{hpt:16},
+      ];
+      ws["!merges"]=merges;
       XLSX.utils.book_append_sheet(wb, ws, child.name.slice(0,31));
     });
     XLSX.writeFile(wb, `実績記録_令和${year-2018}年${month}月.xlsx`);
