@@ -1359,7 +1359,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       font: {sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
       alignment: {horizontal:opts.align||"center", vertical:"center", wrapText:opts.wrap||false},
       border: opts.thick ? XL_BORDER_MED : XL_BORDER,
-      ...(opts.fill?{fill:{fgColor:{rgb:opts.fill},patternType:"solid"}}:{}),
+      fill: {patternType:"solid", fgColor:{rgb: opts.fill||"FFFFFF"}, bgColor:{rgb:"FFFFFF"}},
     }
   });
   const xlHdr = (v, fill="1a3a5c") => xlCell(v, {bold:true, color:"FFFFFF", fill});
@@ -1938,7 +1938,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       left:   { style: "thin", color: { rgb: "000000" } },
       right:  { style: "thin", color: { rgb: "000000" } },
     },
-    fill: opts.fill ? { fgColor: { rgb: opts.fill }, patternType: "solid" } : undefined,
+    fill: { patternType: "solid", fgColor: { rgb: opts.fill || "FFFFFF" }, bgColor: { rgb: "FFFFFF" } },
   });
 
   const makeCellObj = (v, opts = {}) => ({ v: v ?? "", t: typeof v === "number" ? "n" : "s", s: cellStyle(opts) });
