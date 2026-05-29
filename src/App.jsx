@@ -1808,8 +1808,16 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
         {wch:8.0}, // 備考
       ];
       // A4縦印刷設定
-      ws["!pageSetup"]={orientation:"portrait", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
-      ws["!margins"]={left:0.15,right:0.15,top:0.2,bottom:0.2,header:0.1,footer:0.1};
+      // A4縦・余白最小・1ページに収める
+      ws["!pageSetup"]={
+        paperSize: 9,          // A4
+        orientation: "portrait", // 縦向き
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 1,        // 1ページ高さに収める
+        scale: 100,
+      };
+      ws["!margins"]={left:0.15, right:0.15, top:0.15, bottom:0.15, header:0.0, footer:0.0};
       // A4縦762pt総高さに収まるよう行高さを配分
       // ヘッダー7行: 16+26+18+18+13+30+13 = 134pt
       // フッター5行: 15+4+13+13+13 = 58pt
