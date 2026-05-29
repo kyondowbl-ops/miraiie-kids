@@ -1809,7 +1809,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ];
       // A4縦印刷設定
       ws["!pageSetup"]={orientation:"portrait", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
-      ws["!margins"]={left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.2};
+      ws["!margins"]={left:0.15,right:0.15,top:0.2,bottom:0.2,header:0.1,footer:0.1};
       ws["!rows"]=[
         {hpt:16},                              // タイトル
         {hpt:24},{hpt:16},{hpt:16},            // 受給者情報
