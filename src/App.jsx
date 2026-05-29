@@ -1784,13 +1784,32 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       row++;
 
       ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:N-1}});
+      // A4横に収まるよう列幅調整（合計約115wch）
       ws["!cols"]=[
-        {wch:10},{wch:10},{wch:12},{wch:10},{wch:5},
-        {wch:8},{wch:8},{wch:8},{wch:8},
-        {wch:6},{wch:6},
-        {wch:10},{wch:10},{wch:12},{wch:11},{wch:12},{wch:10},
-        {wch:11},{wch:24},
+        {wch:4},   // 日付
+        {wch:4},   // 曜日
+        {wch:8},   // サービス提供状況
+        {wch:5},   // 提供形態
+        {wch:4},   // 区分
+        {wch:6},   // 開始時間
+        {wch:6},   // 終了時間
+        {wch:6},   // 算定時間数
+        {wch:6},   // 滞在時間
+        {wch:4},   // 往
+        {wch:4},   // 復
+        {wch:6},   // 家族支援加算
+        {wch:6},   // 延長支援加算
+        {wch:7},   // 専門的支援加算
+        {wch:7},   // 通所自立支援加算
+        {wch:7},   // 自立サポート加算
+        {wch:6},   // 関係機関連携
+        {wch:7},   // 確認欄
+        {wch:12},  // 備考
       ];
+      // A4横印刷設定
+      if(!ws["!pageSetup"]) ws["!pageSetup"]={};
+      ws["!pageSetup"]={orientation:"landscape", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
+      ws["!margins"]={left:0.5,right:0.5,top:0.75,bottom:0.75,header:0.3,footer:0.3};
       ws["!rows"]=[
         {hpt:22},
         {hpt:32},{hpt:22},{hpt:22},
