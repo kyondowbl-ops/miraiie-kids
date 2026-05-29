@@ -1810,12 +1810,17 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       // A4縦印刷設定
       ws["!pageSetup"]={orientation:"portrait", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
       ws["!margins"]={left:0.15,right:0.15,top:0.2,bottom:0.2,header:0.1,footer:0.1};
+      // A4縦762pt総高さに収まるよう行高さを配分
+      // ヘッダー7行: 16+26+18+18+13+30+13 = 134pt
+      // フッター5行: 15+4+13+13+13 = 58pt
+      // データ行に残り: 762-134-58 = 570pt → 570/daysInMon per row
+      const dataRowHpt = Math.floor(570 / daysInMon);
       ws["!rows"]=[
-        {hpt:16},                              // タイトル
-        {hpt:24},{hpt:16},{hpt:16},            // 受給者情報
-        {hpt:11},{hpt:28},{hpt:12},            // ヘッダー
-        ...Array(daysInMon).fill({hpt:13.5}), // データ行（小さめ）
-        {hpt:14},{hpt:4},{hpt:12},{hpt:12},{hpt:12}, // 合計・加算
+        {hpt:16},                                    // タイトル
+        {hpt:26},{hpt:18},{hpt:18},                  // 受給者情報
+        {hpt:13},{hpt:30},{hpt:13},                  // ヘッダー
+        ...Array(daysInMon).fill({hpt:dataRowHpt}),  // データ行（月の日数で均等配分）
+        {hpt:15},{hpt:4},{hpt:13},{hpt:13},{hpt:13}, // 合計・加算
       ];
       ws["!merges"]=merges;
       XLSX.utils.book_append_sheet(wb, ws, child.name.slice(0,31));
