@@ -1784,38 +1784,38 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       row++;
 
       ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:N-1}});
-      // A4横に収まるよう列幅調整（合計約115wch）
+      // A4縦に収まるよう列幅調整
+      // A4縦の印刷幅 ≒ 19cm = 約72wch相当。全19列の合計を72以内に
       ws["!cols"]=[
-        {wch:4},   // 日付
-        {wch:4},   // 曜日
-        {wch:8},   // サービス提供状況
-        {wch:5},   // 提供形態
-        {wch:4},   // 区分
-        {wch:6},   // 開始時間
-        {wch:6},   // 終了時間
-        {wch:6},   // 算定時間数
-        {wch:6},   // 滞在時間
-        {wch:4},   // 往
-        {wch:4},   // 復
-        {wch:6},   // 家族支援加算
-        {wch:6},   // 延長支援加算
-        {wch:7},   // 専門的支援加算
-        {wch:7},   // 通所自立支援加算
-        {wch:7},   // 自立サポート加算
-        {wch:6},   // 関係機関連携
-        {wch:7},   // 確認欄
-        {wch:12},  // 備考
+        {wch:3.2}, // 日付
+        {wch:3.2}, // 曜日
+        {wch:6.5}, // サービス提供状況
+        {wch:4.0}, // 提供形態
+        {wch:3.0}, // 区分
+        {wch:5.0}, // 開始時間
+        {wch:5.0}, // 終了時間
+        {wch:5.0}, // 算定時間数
+        {wch:5.0}, // 滞在時間
+        {wch:3.0}, // 往
+        {wch:3.0}, // 復
+        {wch:4.5}, // 家族支援加算
+        {wch:4.5}, // 延長支援加算
+        {wch:5.0}, // 専門的支援加算
+        {wch:5.0}, // 通所自立支援加算
+        {wch:5.0}, // 自立サポート加算
+        {wch:4.5}, // 関係機関連携
+        {wch:5.0}, // 確認欄
+        {wch:8.0}, // 備考
       ];
-      // A4横印刷設定
-      if(!ws["!pageSetup"]) ws["!pageSetup"]={};
-      ws["!pageSetup"]={orientation:"landscape", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
-      ws["!margins"]={left:0.5,right:0.5,top:0.75,bottom:0.75,header:0.3,footer:0.3};
+      // A4縦印刷設定
+      ws["!pageSetup"]={orientation:"portrait", paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
+      ws["!margins"]={left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.2};
       ws["!rows"]=[
-        {hpt:22},
-        {hpt:32},{hpt:22},{hpt:22},
-        {hpt:14},{hpt:36},{hpt:16},
-        ...Array(daysInMon).fill({hpt:20}),
-        {hpt:18},{hpt:6},{hpt:16},{hpt:16},{hpt:16},
+        {hpt:16},                              // タイトル
+        {hpt:24},{hpt:16},{hpt:16},            // 受給者情報
+        {hpt:11},{hpt:28},{hpt:12},            // ヘッダー
+        ...Array(daysInMon).fill({hpt:13.5}), // データ行（小さめ）
+        {hpt:14},{hpt:4},{hpt:12},{hpt:12},{hpt:12}, // 合計・加算
       ];
       ws["!merges"]=merges;
       XLSX.utils.book_append_sheet(wb, ws, child.name.slice(0,31));
