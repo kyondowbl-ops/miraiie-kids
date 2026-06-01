@@ -1764,9 +1764,9 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ws[R(row,0)]=C("合計",{sz:9,fill:"F2F2F2",align:"left"});
       ws[R(row,3)]=C(totAttend?`${totAttend}回`:"回",{fill:"F2F2F2"}); // 提供形態列に出席回数
       const totSoTotal = totSoJu + totSoBin;
-      ws[R(row,9)] =C(totSoTotal?`${totSoTotal}回`:"回",{fill:"F2F2F2"}); // 往復合計
-      ws[R(row,10)]=C("",{fill:"F2F2F2"}); // 復（合計は往に表示）
-      merges.push({s:{r:row,c:9},e:{r:row,c:10}}); // 往復セルを結合
+      ws[R(row,9)] =C(totSoTotal?`${totSoTotal}回`:"回",{fill:"F2F2F2"}); // 往復合計（結合）
+      ws[R(row,10)]=C("",{fill:"F2F2F2"});
+      merges.push({s:{r:row,c:9},e:{r:row,c:10}});
       ws[R(row,11)]=C(totKazoku?`${totKazoku}回`:"回",{fill:"F2F2F2"});
       ws[R(row,12)]=C(totEnchyo?`${totEnchyo}回`:"回",{fill:"F2F2F2"});
       ws[R(row,13)]=C(totSenmon?`${totSenmon}回`:"回",{fill:"F2F2F2"});
