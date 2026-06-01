@@ -1043,7 +1043,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
   };
 
   // 名簿管理フォーム
-  const [nfChild, setNfChild] = useState({ name:"", jukyuNo:"", kubun:"2", keiyakuDays:10 });
+  const [nfChild, setNfChild] = useState({ name:"", jukyuNo:"", shichosonNo:"", jigyoshoNo:"", kubun:"2", keiyakuDays:10 });
   const [nfStaff, setNfStaff] = useState({ name:"" });
   const [nfCar,   setNfCar]   = useState({ name:"" });
 
@@ -1312,7 +1312,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
     const id = Date.now();
     const newList = [...children, { ...nfChild, id, name:nfChild.name.trim() }];
     setChildren(newList);
-    setNfChild({ name:"", jukyuNo:"", kubun:"2", keiyakuDays:10 });
+    setNfChild({ name:"", jukyuNo:"", shichosonNo:"", jigyoshoNo:"", kubun:"2", keiyakuDays:10 });
     if (supabase) saveMaster("children", newList);
   };
   const addStaff = () => {
@@ -1599,7 +1599,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ws[R(row,0)]=C(`令和${year-2018}年${month}月分`,{sz:11,bold:true,align:"left"});
       ws[R(row,5)]=C("放課後等デイサービス提供実績記録票",{sz:13,bold:true,align:"center"});
       ws[R(row,15)]=C("事業所番号",{sz:8,align:"center"});
-      ws[R(row,16)]=C(JIGYOSHO_NO,{sz:9,align:"center"});
+      ws[R(row,16)]=C(child.jigyoshoNo||JIGYOSHO_NO,{sz:9,align:"center"});
       merges.push(
         {s:{r:0,c:0},e:{r:0,c:4}},
         {s:{r:0,c:5},e:{r:0,c:14}},
@@ -1617,26 +1617,37 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ws[R(row,11)]=C("事業者\n及び\n事業者名",{sz:8,align:"center"});
       ws[R(row,12)]=C(JIGYOSHO_NAME,{sz:11,bold:true,align:"center"});
       merges.push(
-        {s:{r:1,c:0},e:{r:2,c:0}},
-        {s:{r:1,c:1},e:{r:2,c:2}},
-        {s:{r:1,c:3},e:{r:2,c:4}},
-        {s:{r:1,c:5},e:{r:2,c:10}},
+        {s:{r:1,c:0},e:{r:1,c:0}},
+        {s:{r:1,c:1},e:{r:1,c:2}},
+        {s:{r:1,c:3},e:{r:1,c:4}},
+        {s:{r:1,c:5},e:{r:1,c:10}},
         {s:{r:1,c:11},e:{r:3,c:11}},
         {s:{r:1,c:12},e:{r:3,c:18}},
       );
       row++;
 
-      // ===== 行2: 契約支給量 =====
+      // ===== 行2: 市町村番号 =====
+      for(let c=0;c<N;c++) ws[R(row,c)]=C("");
+      ws[R(row,0)]=C("市町村\n番　号",{sz:8,align:"center"});
+      ws[R(row,1)]=C(child.shichosonNo||"",{sz:9,align:"center"});
+      merges.push(
+        {s:{r:2,c:0},e:{r:2,c:0}},
+        {s:{r:2,c:1},e:{r:2,c:2}},
+        {s:{r:2,c:3},e:{r:2,c:10}},
+      );
+      row++;
+
+      // ===== 行3: 契約支給量 =====
       for(let c=0;c<N;c++) ws[R(row,c)]=C("");
       ws[R(row,0)]=C("契約支給量",{sz:8,align:"center"});
       ws[R(row,1)]=C(`${child.keiyakuDays||10}日／月`,{sz:10,align:"center"});
       merges.push(
-        {s:{r:2,c:0},e:{r:3,c:0}},
-        {s:{r:2,c:1},e:{r:3,c:10}},
+        {s:{r:3,c:0},e:{r:4,c:0}},
+        {s:{r:3,c:1},e:{r:4,c:10}},
       );
       row++;
 
-      // ===== 行3: マージ続き =====
+      // ===== 行4: マージ続き =====
       for(let c=0;c<N;c++) ws[R(row,c)]=C("");
       row++;
 
@@ -1649,11 +1660,11 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ws[R(row,17)]=C("保護者等\n確認欄",{sz:8,fill:FH});
       ws[R(row,18)]=C("備考",{sz:9,fill:FH});
       merges.push(
-        {s:{r:4,c:0},e:{r:6,c:0}},
-        {s:{r:4,c:1},e:{r:6,c:1}},
-        {s:{r:4,c:2},e:{r:4,c:16}},
-        {s:{r:4,c:17},e:{r:6,c:17}},
-        {s:{r:4,c:18},e:{r:6,c:18}},
+        {s:{r:5,c:0},e:{r:7,c:0}},
+        {s:{r:5,c:1},e:{r:7,c:1}},
+        {s:{r:5,c:2},e:{r:5,c:16}},
+        {s:{r:5,c:17},e:{r:7,c:17}},
+        {s:{r:5,c:18},e:{r:7,c:18}},
       );
       row++;
 
@@ -1674,20 +1685,20 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       ws[R(row,15)]=C("自立\nサポート加算",{sz:7,fill:FH});
       ws[R(row,16)]=C("関係機関\n連携",{sz:7,fill:FH});
       merges.push(
-        {s:{r:5,c:2},e:{r:6,c:2}},
-        {s:{r:5,c:3},e:{r:6,c:3}},
-        {s:{r:5,c:4},e:{r:6,c:4}},
-        {s:{r:5,c:5},e:{r:6,c:5}},
-        {s:{r:5,c:6},e:{r:6,c:6}},
-        {s:{r:5,c:7},e:{r:6,c:7}},
-        {s:{r:5,c:8},e:{r:6,c:8}},
-        {s:{r:5,c:9},e:{r:5,c:10}},
-        {s:{r:5,c:11},e:{r:6,c:11}},
-        {s:{r:5,c:12},e:{r:6,c:12}},
-        {s:{r:5,c:13},e:{r:6,c:13}},
-        {s:{r:5,c:14},e:{r:6,c:14}},
-        {s:{r:5,c:15},e:{r:6,c:15}},
-        {s:{r:5,c:16},e:{r:6,c:16}},
+        {s:{r:6,c:2},e:{r:7,c:2}},
+        {s:{r:6,c:3},e:{r:7,c:3}},
+        {s:{r:6,c:4},e:{r:7,c:4}},
+        {s:{r:6,c:5},e:{r:7,c:5}},
+        {s:{r:6,c:6},e:{r:7,c:6}},
+        {s:{r:6,c:7},e:{r:7,c:7}},
+        {s:{r:6,c:8},e:{r:7,c:8}},
+        {s:{r:6,c:9},e:{r:6,c:10}},
+        {s:{r:6,c:11},e:{r:7,c:11}},
+        {s:{r:6,c:12},e:{r:7,c:12}},
+        {s:{r:6,c:13},e:{r:7,c:13}},
+        {s:{r:6,c:14},e:{r:7,c:14}},
+        {s:{r:6,c:15},e:{r:7,c:15}},
+        {s:{r:6,c:16},e:{r:7,c:16}},
       );
       row++;
 
@@ -1701,6 +1712,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       const DOWS=["日","月","火","水","木","金","土"];
       const firstDow=new Date(year, month-1, 1).getDay();
       let totSoJu=0,totSoBin=0,totKazoku=0,totEnchyo=0,totSenmon=0,totTsuusho=0,totJiritsu=0,totKankei=0;
+      const jissekiMap={};
 
       for(let d=1;d<=daysInMon;d++){
         const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
@@ -1718,6 +1730,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
         ws[R(row,1)]=C(dow,{fill:bf,color:dc});
 
         if(attend==="present"){
+          jissekiMap[d]=true;
           const s=ov.timeStart||linked.startTime||"";
           const e=ov.timeEnd||linked.endTime||"";
           const santei=ov.santeiManual!==undefined?ov.santeiManual:calcSantei(s,e);
@@ -1745,17 +1758,20 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       }
 
       // ===== 合計行 =====
+      const totAttend = Object.values(jissekiMap).filter(Boolean).length; // 出席回数
+      const totSoTotal = totSoJu + totSoBin; // 送迎往路+復路合計
       for(let c=0;c<N;c++) ws[R(row,c)]=C("",{fill:"F2F2F2"});
       ws[R(row,0)]=C("合計",{sz:9,fill:"F2F2F2",align:"left"});
-      ws[R(row,9)] =C(totSoJu  ?`${totSoJu}回`:"回",  {fill:"F2F2F2"});
-      ws[R(row,10)]=C(totSoBin ?`${totSoBin}回`:"回", {fill:"F2F2F2"});
+      ws[R(row,3)]=C(totAttend?`${totAttend}回`:"回",{fill:"F2F2F2"}); // 提供形態列に出席回数
+      ws[R(row,9)] =C(totSoJu  ?`${totSoJu}回`:"回",  {fill:"F2F2F2"}); // 往
+      ws[R(row,10)]=C(totSoBin ?`${totSoBin}回`:"回", {fill:"F2F2F2"}); // 復
       ws[R(row,11)]=C(totKazoku?`${totKazoku}回`:"回",{fill:"F2F2F2"});
       ws[R(row,12)]=C(totEnchyo?`${totEnchyo}回`:"回",{fill:"F2F2F2"});
       ws[R(row,13)]=C(totSenmon?`${totSenmon}回`:"回",{fill:"F2F2F2"});
       ws[R(row,14)]=C(totTsuusho?`${totTsuusho}回`:"回",{fill:"F2F2F2"});
       ws[R(row,15)]=C(totJiritsu?`${totJiritsu}回`:"回",{fill:"F2F2F2"});
-      ws[R(row,16)]=C(totKankei?`${totKankei}回`:"回", {fill:"F2F2F2"});
-      merges.push({s:{r:row,c:0},e:{r:row,c:8}});
+      ws[R(row,16)]=C("",{fill:"F2F2F2"}); // 関係機関連携は合計なし
+      merges.push({s:{r:row,c:0},e:{r:row,c:2}});
       row++;
 
       // ===== 空行 =====
@@ -3998,6 +4014,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
               <div className="add-form">
                 <div className="fg"><label>氏名</label><input placeholder="山田 太郎" value={nfChild.name} onChange={e=>setNfChild(p=>({...p,name:e.target.value}))}/></div>
                 <div className="fg"><label>受給者証番号</label><input placeholder="0001234567" value={nfChild.jukyuNo} onChange={e=>setNfChild(p=>({...p,jukyuNo:e.target.value}))}/></div>
+                <div className="fg"><label>市町村番号</label><input placeholder="市町村番号" value={nfChild.shichosonNo||""} onChange={e=>setNfChild(p=>({...p,shichosonNo:e.target.value}))}/></div>
+                <div className="fg"><label>事業所番号（個別）</label><input placeholder="空欄の場合は共通番号を使用" value={nfChild.jigyoshoNo||""} onChange={e=>setNfChild(p=>({...p,jigyoshoNo:e.target.value}))}/></div>
                 <div className="fg" style={{maxWidth:60}}><label>区分</label>
                   <select value={nfChild.kubun} onChange={e=>setNfChild(p=>({...p,kubun:e.target.value}))}>
                     <option value="1">1</option><option value="2">2</option><option value="3">3</option>
