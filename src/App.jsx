@@ -1805,8 +1805,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       // A4縦に収まるよう列幅調整
       // A4縦の印刷幅 ≒ 19cm = 約72wch相当。全19列の合計を72以内に
       ws["!cols"]=[
-        {wch:3.2}, // 日付
-        {wch:3.2}, // 曜日
+        {wch:4.5}, // 日付
+        {wch:4.0}, // 曜日
         {wch:6.5}, // サービス提供状況
         {wch:4.0}, // 提供形態
         {wch:3.0}, // 区分
@@ -1837,16 +1837,16 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       };
       ws["!margins"]={left:0.15, right:0.15, top:0.15, bottom:0.15, header:0.0, footer:0.0};
       // A4縦762pt総高さに収まるよう行高さを配分
-      // ヘッダー7行: 16+26+18+18+13+30+13 = 134pt
-      // フッター5行: 15+4+13+13+13 = 58pt
-      // データ行に残り: 762-134-58 = 570pt → 570/daysInMon per row
-      const dataRowHpt = Math.floor(570 / daysInMon);
+      // ヘッダー8行: 16+20+16+16+16+11+28+12 = 135pt
+      // フッター5行: 22+4+13+13+13 = 65pt
+      // データ行に残り: 762-135-65 = 562pt → 562/daysInMon per row
+      const dataRowHpt = Math.floor(562 / daysInMon);
       ws["!rows"]=[
         {hpt:16},                                    // タイトル
-        {hpt:26},{hpt:18},{hpt:18},                  // 受給者情報
-        {hpt:13},{hpt:30},{hpt:13},                  // ヘッダー
-        ...Array(daysInMon).fill({hpt:dataRowHpt}),  // データ行（月の日数で均等配分）
-        {hpt:15},{hpt:4},{hpt:13},{hpt:13},{hpt:13}, // 合計・加算
+        {hpt:20},{hpt:16},{hpt:16},{hpt:16},         // 受給者情報（市町村番号含む4行）
+        {hpt:11},{hpt:28},{hpt:12},                  // ヘッダー
+        ...Array(daysInMon).fill({hpt:dataRowHpt}),  // データ行
+        {hpt:22},{hpt:4},{hpt:13},{hpt:13},{hpt:13}, // 合計（高め）・加算
       ];
       ws["!merges"]=merges;
       XLSX.utils.book_append_sheet(wb, ws, child.name.slice(0,31));
