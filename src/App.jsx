@@ -729,92 +729,85 @@ const AppWithAuth = () => (
 
 export default AppWithAuth;
 
-// ===== 5分刻みドラムロール時間ピッカー =====
+// ===== 5分刻み時間ピッカー =====
 function TimeWheelPicker({ value, onChange, onClose }) {
-  const HOURS   = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
-  const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
-  const parts   = (value||'12:00').split(':');
-  const initH   = Math.max(0, HOURS.indexOf(parts[0].padStart(2,'0')));
-  const mRound  = String(Math.round(parseInt(parts[1]||0)/5)*5%60).padStart(2,'0');
-  const initM   = Math.max(0, MINUTES.indexOf(mRound));
+  const H_LIST = ['06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23'];
+  const M_LIST = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const parts = (value||'13:00').split(':');
+  const initH = Math.max(0, H_LIST.indexOf(parts[0].padStart(2,'0')));
+  const mRound = String(Math.round(parseInt(parts[1]||0)/5)*5%60).padStart(2,'0');
+  const initM = Math.max(0, M_LIST.indexOf(mRound));
   const [selH, setSelH] = React.useState(initH);
   const [selM, setSelM] = React.useState(initM);
-  const ITEM_H  = 48;
 
-  function WheelCol({ items, selIdx, onSel }) {
-    const ref = React.useRef(null);
-    const n   = items.length;
+  const ColStyle = {
+    display:'flex', flexDirection:'column', alignItems:'center',
+    height:220, overflowY:'scroll', scrollSnapType:'y mandatory',
+    scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
+    width:80,
+  };
+  const ItemStyle = (selected) => ({
+    height:44, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center',
+    scrollSnapAlign:'center', fontSize: selected?32:20,
+    fontWeight: selected?700:400, color: selected?'#fff':'#6b7280',
+    cursor:'pointer', userSelect:'none', flexShrink:0,
+  });
 
-    React.useEffect(() => {
-      // 初回マウント時のみスクロール位置を設定
-      if (ref.current) {
-        ref.current.scrollTop = selIdx * ITEM_H;
-      }
-    }, []); // eslint-disable-line
+  const hRef = React.useRef(null);
+  const mRef = React.useRef(null);
 
-    function onScroll() {
-      if (!ref.current) return;
-      const idx = Math.min(n-1, Math.max(0, Math.round(ref.current.scrollTop / ITEM_H)));
-      onSel(idx);
-    }
-
-    return (
-      <div style={{position:'relative', width:80, height:ITEM_H*5, overflow:'hidden'}}>
-        {/* 選択ハイライト */}
-        <div style={{position:'absolute',top:ITEM_H*2,left:4,right:4,height:ITEM_H,
-          background:'rgba(99,179,237,0.2)',borderRadius:10,pointerEvents:'none',zIndex:1,
-          borderTop:'2px solid #63b3ed',borderBottom:'2px solid #63b3ed'}}/>
-        {/* 上下フェード */}
-        <div style={{position:'absolute',top:0,left:0,right:0,height:ITEM_H*2,
-          background:'linear-gradient(to bottom,#1c1c1e 0%,transparent 100%)',
-          pointerEvents:'none',zIndex:2}}/>
-        <div style={{position:'absolute',bottom:0,left:0,right:0,height:ITEM_H*2,
-          background:'linear-gradient(to top,#1c1c1e 0%,transparent 100%)',
-          pointerEvents:'none',zIndex:2}}/>
-        {/* スクロール領域 */}
-        <div ref={ref} onScroll={onScroll}
-          style={{height:'100%',overflowY:'scroll',scrollbarWidth:'none',
-            msOverflowStyle:'none',WebkitOverflowScrolling:'touch',
-            scrollSnapType:'y mandatory'}}>
-          <div style={{height:ITEM_H*2}}/>
-          {items.map((v,i) => (
-            <div key={v}
-              onClick={() => { onSel(i); if(ref.current) ref.current.scrollTop = i*ITEM_H; }}
-              style={{height:ITEM_H,scrollSnapAlign:'center',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:selIdx===i?32:20, fontWeight:selIdx===i?700:400,
-                color:selIdx===i?'#ffffff':'#6b7280',
-                cursor:'pointer',userSelect:'none'}}>
-              {v}
-            </div>
-          ))}
-          <div style={{height:ITEM_H*2}}/>
-        </div>
-      </div>
-    );
-  }
+  React.useEffect(() => {
+    if(hRef.current) hRef.current.scrollTop = initH * 44;
+    if(mRef.current) mRef.current.scrollTop = initM * 44;
+  }, []);
 
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',top:0,left:0,
-        width:'100%',height:'100%',background:'rgba(0,0,0,0.55)',zIndex:2000}}/>
+      <div onClick={onClose} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',
+        background:'rgba(0,0,0,0.55)',zIndex:2000}}/>
       <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1c1c1e',
         borderRadius:'20px 20px 0 0',zIndex:2001,padding:'20px 32px 40px',
-        display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
-        <div style={{display:'flex',alignItems:'center',gap:4}}>
-          <WheelCol key="hours"   items={HOURS}   selIdx={selH} onSel={setSelH}/>
-          <span style={{color:'white',fontSize:32,fontWeight:700}}>:</span>
-          <WheelCol key="minutes" items={MINUTES} selIdx={selM} onSel={setSelM}/>
+        display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+
+        {/* セレクト方式（確実に5分刻み） */}
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          {/* 時 */}
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <span style={{color:'#9ca3af',fontSize:12}}>時</span>
+            <select value={H_LIST[selH]} onChange={e=>setSelH(H_LIST.indexOf(e.target.value))}
+              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
+                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
+                textAlign:'center',cursor:'pointer',appearance:'none',width:80}}>
+              {H_LIST.map(h=><option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <span style={{color:'white',fontSize:32,fontWeight:700,marginTop:20}}>:</span>
+          {/* 分（5分刻み） */}
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <span style={{color:'#9ca3af',fontSize:12}}>分（5分刻み）</span>
+            <select value={M_LIST[selM]} onChange={e=>setSelM(M_LIST.indexOf(e.target.value))}
+              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
+                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
+                textAlign:'center',cursor:'pointer',appearance:'none',width:80}}>
+              {M_LIST.map(m=><option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
         </div>
+
+        {/* 現在の選択値表示 */}
+        <div style={{color:'#60a5fa',fontSize:36,fontWeight:700,letterSpacing:4}}>
+          {H_LIST[selH]}:{M_LIST[selM]}
+        </div>
+
         <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center'}}>
           <button onClick={()=>{onChange('');onClose();}}
             style={{background:'#3a3a3c',color:'white',border:'none',borderRadius:22,
-              padding:'11px 28px',fontSize:16,fontWeight:600,cursor:'pointer'}}>
+              padding:'12px 28px',fontSize:16,fontWeight:600,cursor:'pointer'}}>
             リセット
           </button>
-          <button onClick={()=>{onChange(HOURS[selH]+':'+MINUTES[selM]);onClose();}}
+          <button onClick={()=>{onChange(H_LIST[selH]+':'+M_LIST[selM]);onClose();}}
             style={{background:'#3b82f6',color:'white',border:'none',borderRadius:999,
-              width:56,height:56,fontSize:24,cursor:'pointer',
+              width:60,height:60,fontSize:26,cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center'}}>
             ✓
           </button>
