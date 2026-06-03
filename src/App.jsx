@@ -730,12 +730,78 @@ const AppWithAuth = () => (
 export default AppWithAuth;
 
 
-function TimeWheelTrigger({ value, onChange }) {
+// ===== 5分刻み時間ピッカー =====
+function TimeWheelPicker({ value, onChange, onClose }) {
+  const H_LIST = ['06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23'];
+  const M_LIST = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const parts = (value||'13:00').split(':');
+  const initH = Math.max(0, H_LIST.indexOf(parts[0].padStart(2,'0')));
+  const mRound = String(Math.round(parseInt(parts[1]||0)/5)*5%60).padStart(2,'0');
+  const initM = Math.max(0, M_LIST.indexOf(mRound));
+  const [selH, setSelH] = React.useState(initH);
+  const [selM, setSelM] = React.useState(initM);
+
   return (
-    <input className="tinput" type="time"
-      value={value||''}
-      onChange={e => onChange(e.target.value)}
-      style={{minWidth:60, textAlign:'center', cursor:'pointer'}}/>
+    <>
+      <div onClick={onClose} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',
+        background:'rgba(0,0,0,0.55)',zIndex:2000}}/>
+      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1c1c1e',
+        borderRadius:'20px 20px 0 0',zIndex:2001,padding:'20px 32px 40px',
+        display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <span style={{color:'#9ca3af',fontSize:12}}>時</span>
+            <select value={H_LIST[selH]} onChange={e=>setSelH(H_LIST.indexOf(e.target.value))}
+              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
+                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
+                textAlign:'center',cursor:'pointer',width:80}}>
+              {H_LIST.map(h=><option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <span style={{color:'white',fontSize:32,fontWeight:700,marginTop:20}}>:</span>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <span style={{color:'#9ca3af',fontSize:12}}>分</span>
+            <select value={M_LIST[selM]} onChange={e=>setSelM(M_LIST.indexOf(e.target.value))}
+              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
+                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
+                textAlign:'center',cursor:'pointer',width:80}}>
+              {M_LIST.map(m=><option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{color:'#60a5fa',fontSize:36,fontWeight:700,letterSpacing:4}}>
+          {H_LIST[selH]}:{M_LIST[selM]}
+        </div>
+        <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center'}}>
+          <button onClick={()=>{onChange('');onClose();}}
+            style={{background:'#3a3a3c',color:'white',border:'none',borderRadius:22,
+              padding:'12px 28px',fontSize:16,fontWeight:600,cursor:'pointer'}}>
+            リセット
+          </button>
+          <button onClick={()=>{onChange(H_LIST[selH]+':'+M_LIST[selM]);onClose();}}
+            style={{background:'#3b82f6',color:'white',border:'none',borderRadius:999,
+              width:60,height:60,fontSize:26,cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+            ✓
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+function TimeWheelTrigger({ value, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button onClick={()=>setOpen(true)}
+        style={{cursor:'pointer',minWidth:60,textAlign:'center',
+          background:value?'#ebf8ff':'#f7fafc',border:'1px solid #bee3f8',
+          borderRadius:6,padding:'4px 8px',fontSize:13,fontWeight:600,
+          color:value?'#2b6cb0':'#a0aec0',whiteSpace:'nowrap'}}>
+        {value||'--:--'}
+      </button>
+      {open && <TimeWheelPicker value={value} onChange={onChange} onClose={()=>setOpen(false)}/>}
+    </>
   );
 }
 
