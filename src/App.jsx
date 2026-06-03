@@ -739,36 +739,25 @@ function TimeWheelPicker({ value, onChange, onClose }) {
   const initM  = Math.max(0, M_LIST.indexOf(mRound));
   const [selH, setSelH] = React.useState(initH);
   const [selM, setSelM] = React.useState(initM);
-  const ITEM_H = 50;
+  const ITEM_H = 44;
 
   function WheelCol({ id, items, selIdx, onSel }) {
     const ref = React.useRef(null);
-
     React.useEffect(() => {
       if (ref.current) ref.current.scrollTop = selIdx * ITEM_H;
     }, []);
-
     const handleScroll = React.useCallback((e) => {
-      const raw = e.target.scrollTop;
-      const idx = Math.min(items.length-1, Math.max(0, Math.round(raw / ITEM_H)));
+      const idx = Math.min(items.length-1, Math.max(0, Math.round(e.target.scrollTop / ITEM_H)));
       onSel(idx);
     }, [items.length, onSel]);
-
     return (
-      <div style={{position:'relative', width:88, height:ITEM_H*5, overflow:'hidden'}}>
+      <div style={{position:'relative', width:100, height:ITEM_H*7, overflow:'hidden'}}>
+        {/* 選択枠ハイライト */}
         <div style={{
-          position:'absolute', top:ITEM_H*2, left:0, right:0, height:ITEM_H,
-          background:'rgba(255,255,255,0.1)', borderRadius:10,
-          borderTop:'0.5px solid rgba(255,255,255,0.3)',
-          borderBottom:'0.5px solid rgba(255,255,255,0.3)',
+          position:'absolute', top:ITEM_H*3, left:8, right:8, height:ITEM_H,
+          background:'rgba(255,255,255,0.12)', borderRadius:8,
           pointerEvents:'none', zIndex:2
         }}/>
-        <div style={{position:'absolute',top:0,left:0,right:0,height:ITEM_H*2,
-          background:'linear-gradient(to bottom,rgba(28,28,30,1),rgba(28,28,30,0))',
-          pointerEvents:'none',zIndex:3}}/>
-        <div style={{position:'absolute',bottom:0,left:0,right:0,height:ITEM_H*2,
-          background:'linear-gradient(to top,rgba(28,28,30,1),rgba(28,28,30,0))',
-          pointerEvents:'none',zIndex:3}}/>
         <div ref={ref} onScroll={handleScroll}
           style={{
             height:'100%', overflowY:'scroll',
@@ -776,21 +765,21 @@ function TimeWheelPicker({ value, onChange, onClose }) {
             scrollbarWidth:'none', msOverflowStyle:'none',
             WebkitOverflowScrolling:'touch',
           }}>
-          <div style={{height:ITEM_H*2}}/>
+          <div style={{height:ITEM_H*3}}/>
           {items.map((v,i) => (
-            <div key={id+'-'+i}
+            <div key={id+i}
               style={{
                 height:ITEM_H, scrollSnapAlign:'center',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize: selIdx===i ? 34 : 22,
-                fontWeight: selIdx===i ? 600 : 400,
-                color: selIdx===i ? '#ffffff' : 'rgba(255,255,255,0.35)',
+                fontSize: selIdx===i ? 42 : 28,
+                fontWeight: selIdx===i ? 400 : 300,
+                color: selIdx===i ? '#ffffff' : 'rgba(255,255,255,0.4)',
                 userSelect:'none', flexShrink:0,
               }}>
               {v}
             </div>
           ))}
-          <div style={{height:ITEM_H*2}}/>
+          <div style={{height:ITEM_H*3}}/>
         </div>
       </div>
     );
@@ -798,34 +787,47 @@ function TimeWheelPicker({ value, onChange, onClose }) {
 
   return (
     <>
-      <div onClick={onClose} style={{
-        position:'fixed',top:0,left:0,width:'100%',height:'100%',
-        background:'rgba(0,0,0,0.4)',zIndex:2000
-      }}/>
+      {/* 半透明オーバーレイ（全画面） */}
       <div style={{
-        position:'fixed',bottom:0,left:0,right:0,
-        background:'#1c1c1e', borderRadius:'16px 16px 0 0', zIndex:2001,
-        paddingBottom:'env(safe-area-inset-bottom)',
+        position:'fixed', top:0, left:0, width:'100%', height:'100%',
+        background:'rgba(0,0,0,0.6)', zIndex:2000,
+        display:'flex', flexDirection:'column', justifyContent:'flex-end',
       }}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'center',
-          gap:0, padding:'24px 32px 8px'}}>
-          <WheelCol id="h" items={H_LIST} selIdx={selH} onSel={setSelH}/>
-          <span style={{color:'white',fontSize:34,fontWeight:300,margin:'0 4px'}}>:</span>
-          <WheelCol id="m" items={M_LIST} selIdx={selM} onSel={setSelM}/>
-        </div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-          padding:'12px 32px 28px'}}>
-          <button onClick={()=>{onChange('');onClose();}}
-            style={{background:'rgba(255,255,255,0.12)',color:'white',border:'none',
-              borderRadius:22,padding:'12px 28px',fontSize:17,fontWeight:600,cursor:'pointer'}}>
-            リセット
-          </button>
-          <button onClick={()=>{onChange(H_LIST[selH]+':'+M_LIST[selM]);onClose();}}
-            style={{background:'#0a84ff',color:'white',border:'none',borderRadius:999,
-              width:56,height:56,fontSize:26,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
-            ✓
-          </button>
+        {/* 上部タップで閉じる */}
+        <div onClick={onClose} style={{flex:1}}/>
+        {/* ピッカー本体 */}
+        <div style={{background:'rgba(30,30,32,0.98)', borderRadius:'16px 16px 0 0'}}>
+          {/* ドラムロール */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'center',
+            padding:'32px 16px 16px', gap:0,
+          }}>
+            <WheelCol id="h" items={H_LIST} selIdx={selH} onSel={setSelH}/>
+            <span style={{color:'white', fontSize:48, fontWeight:200, margin:'0 8px', lineHeight:1}}>:</span>
+            <WheelCol id="m" items={M_LIST} selIdx={selM} onSel={setSelM}/>
+          </div>
+          {/* ボタン行 */}
+          <div style={{
+            display:'flex', justifyContent:'space-between', alignItems:'center',
+            padding:'8px 32px 40px',
+          }}>
+            <button onClick={()=>{onChange('');onClose();}}
+              style={{
+                background:'rgba(60,60,65,0.9)', color:'white',
+                border:'none', borderRadius:30,
+                padding:'14px 32px', fontSize:17, fontWeight:600, cursor:'pointer',
+              }}>
+              リセット
+            </button>
+            <button onClick={()=>{onChange(H_LIST[selH]+':'+M_LIST[selM]);onClose();}}
+              style={{
+                background:'#0a84ff', color:'white', border:'none', borderRadius:999,
+                width:60, height:60, fontSize:28, cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center',
+              }}>
+              ✓
+            </button>
+          </div>
         </div>
       </div>
     </>
