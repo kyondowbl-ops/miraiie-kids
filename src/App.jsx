@@ -730,20 +730,122 @@ const AppWithAuth = () => (
 export default AppWithAuth;
 
 
-function TimeWheelTrigger({ value, onChange }) {
-  const roundTo5 = (v) => {
-    if (!v) return '';
-    const [h, m] = v.split(':');
-    const rounded = Math.round(parseInt(m) / 5) * 5;
-    const rm = rounded >= 60 ? 0 : rounded;
-    const rh = rounded >= 60 ? String(parseInt(h)+1).padStart(2,'0') : h;
-    return `${rh}:${String(rm).padStart(2,'0')}`;
-  };
+// ===== 5分刻み時間ピッカー =====
+function TimeWheelPicker({ value, onChange, onClose }) {
+  const hours   = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
+  const minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const parts   = (value||'13:00').split(':');
+  const initH   = Math.max(0, hours.indexOf(parts[0].padStart(2,'0')));
+  const mRound  = String(Math.round(parseInt(parts[1]||0)/5)*5%60).padStart(2,'0');
+  const initM   = Math.max(0, minutes.indexOf(mRound));
+  const [selH, setSelH] = React.useState(initH);
+  const [selM, setSelM] = React.useState(initM);
+  const ITEM_H = 44;
+
+  function WheelCol({ id, items, sel, onSel }) {
+    const ref = React.useRef();
+    React.useEffect(() => {
+      if (ref.current) ref.current.scrollTop = sel * ITEM_H;
+    }, []);
+    const onScroll = (e) => {
+      const idx = Math.round(e.target.scrollTop / ITEM_H);
+      onSel(Math.max(0, Math.min(items.length-1, idx)));
+    };
+    return (
+      <div style={{position:'relative', width:80, height:ITEM_H*5, overflow:'hidden'}}>
+        <div style={{
+          position:'absolute', top:ITEM_H*2, left:4, right:4, height:ITEM_H,
+          background:'rgba(118,118,128,0.24)', borderRadius:10,
+          pointerEvents:'none', zIndex:1,
+        }}/>
+        <div ref={ref} onScroll={onScroll} style={{
+          height:'100%', overflowY:'scroll',
+          scrollSnapType:'y mandatory', scrollbarWidth:'none',
+          WebkitOverflowScrolling:'touch',
+        }}>
+          <div style={{height:ITEM_H*2}}/>
+          {items.map((v,i) => (
+            <div key={id+i}
+              onClick={()=>{ onSel(i); ref.current.scrollTo({top:i*ITEM_H,behavior:'smooth'}); }}
+              style={{
+                height:ITEM_H, scrollSnapAlign:'center',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize: sel===i ? 28 : 20,
+                fontWeight: sel===i ? 400 : 300,
+                color: sel===i ? '#fff' : 'rgba(235,235,245,0.35)',
+                cursor:'pointer', userSelect:'none',
+              }}>
+              {v}
+            </div>
+          ))}
+          <div style={{height:ITEM_H*2}}/>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <input className="tinput" type="time"
-      value={value||''}
-      onChange={e => onChange(roundTo5(e.target.value))}
-      style={{minWidth:60, textAlign:'center', cursor:'pointer'}}/>
+    <>
+      <div onClick={onClose} style={{
+        position:'fixed', top:0, left:0, width:'100%', height:'100%',
+        background:'rgba(0,0,0,0.5)', zIndex:3000,
+      }}/>
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0,
+        background:'#1c1c1e',
+        borderRadius:'13px 13px 0 0',
+        zIndex:3001,
+        paddingBottom:'env(safe-area-inset-bottom,16px)',
+      }}>
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'center',
+          gap:4, padding:'20px 24px 8px',
+        }}>
+          <WheelCol id="h" items={hours}   sel={selH} onSel={setSelH}/>
+          <span style={{color:'white', fontSize:30, fontWeight:200}}>:</span>
+          <WheelCol id="m" items={minutes} sel={selM} onSel={setSelM}/>
+        </div>
+        <div style={{
+          display:'flex', justifyContent:'space-between', alignItems:'center',
+          padding:'8px 24px 24px',
+        }}>
+          <button onClick={()=>{ onChange(''); onClose(); }}
+            style={{
+              background:'rgba(118,118,128,0.24)', color:'white',
+              border:'none', borderRadius:20,
+              padding:'10px 24px', fontSize:15, fontWeight:600, cursor:'pointer',
+            }}>
+            リセット
+          </button>
+          <button onClick={()=>{ onChange(hours[selH]+':'+minutes[selM]); onClose(); }}
+            style={{
+              background:'#0a84ff', color:'white', border:'none', borderRadius:999,
+              width:52, height:52, fontSize:22, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+            ✓
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+function TimeWheelTrigger({ value, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button onClick={()=>setOpen(true)} className="tinput"
+        style={{
+          cursor:'pointer', minWidth:60, textAlign:'center',
+          background:'white', border:'1px solid #d1d5db',
+          borderRadius:6, padding:'4px 8px',
+          fontSize:13, fontWeight:600,
+          color: value ? '#1a3a5c' : '#9ca3af',
+        }}>
+        {value||'--:--'}
+      </button>
+      {open && <TimeWheelPicker value={value} onChange={onChange} onClose={()=>setOpen(false)}/>}
+    </>
   );
 }
 
