@@ -729,6 +729,91 @@ const AppWithAuth = () => (
 
 export default AppWithAuth;
 
+// ===== 5分刻みドラムロール時間ピッカー =====
+function TimeWheelPicker({ value, onChange, onClose }) {
+  const hours = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
+  const minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const parts = value ? value.split(':') : ['12','00'];
+  const initH = Math.max(0, hours.indexOf(parts[0].padStart(2,'0')));
+  const roundedM = String(Math.round(parseInt(parts[1]||'0')/5)*5%60).padStart(2,'0');
+  const initM = Math.max(0, minutes.indexOf(roundedM));
+  const [selH, setSelH] = React.useState(initH);
+  const [selM, setSelM] = React.useState(initM);
+  const ITEM_H = 44;
+  function WheelCol({ items, sel, onSel }) {
+    const ref = React.useRef();
+    React.useEffect(() => { if (ref.current) ref.current.scrollTop = sel * ITEM_H; }, []);
+    const handleScroll = (e) => {
+      const idx = Math.round(e.target.scrollTop / ITEM_H);
+      onSel(Math.max(0, Math.min(items.length-1, idx)));
+    };
+    return (
+      <div style={{position:'relative',width:72,height:ITEM_H*5,overflow:'hidden'}}>
+        <div style={{position:'absolute',top:ITEM_H*2,left:0,right:0,height:ITEM_H,
+          background:'rgba(66,153,225,0.15)',borderRadius:8,pointerEvents:'none',zIndex:1,
+          borderTop:'2px solid #4299e1',borderBottom:'2px solid #4299e1'}}/>
+        <div ref={ref} onScroll={handleScroll}
+          style={{height:'100%',overflowY:'scroll',scrollSnapType:'y mandatory',
+            scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
+          <div style={{height:ITEM_H*2}}/>
+          {items.map((v,i)=>(
+            <div key={v} onClick={()=>{onSel(i);if(ref.current)ref.current.scrollTo({top:i*ITEM_H,behavior:'smooth'});}}
+              style={{height:ITEM_H,display:'flex',alignItems:'center',justifyContent:'center',
+                scrollSnapAlign:'start',fontSize:sel===i?28:20,fontWeight:sel===i?700:400,
+                color:sel===i?'#edf2f7':'#718096',cursor:'pointer',userSelect:'none'}}>
+              {v}
+            </div>
+          ))}
+          <div style={{height:ITEM_H*2}}/>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',
+        background:'rgba(0,0,0,0.5)',zIndex:2000}}/>
+      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1c1c1e',
+        borderRadius:'16px 16px 0 0',zIndex:2001,padding:'16px 24px 32px',
+        display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <WheelCol items={hours} sel={selH} onSel={setSelH}/>
+          <span style={{color:'white',fontSize:28,fontWeight:700}}>:</span>
+          <WheelCol items={minutes} sel={selM} onSel={setSelM}/>
+        </div>
+        <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+          <button onClick={()=>{onChange('');onClose();}}
+            style={{background:'#3a3a3c',color:'white',border:'none',borderRadius:20,
+              padding:'10px 24px',fontSize:15,fontWeight:600,cursor:'pointer'}}>
+            リセット
+          </button>
+          <button onClick={()=>{onChange(hours[selH]+':'+minutes[selM]);onClose();}}
+            style={{background:'#4299e1',color:'white',border:'none',borderRadius:999,
+              width:52,height:52,fontSize:22,cursor:'pointer',display:'flex',
+              alignItems:'center',justifyContent:'center'}}>
+            ✓
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+function TimeWheelTrigger({ value, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button onClick={()=>setOpen(true)}
+        style={{cursor:'pointer',minWidth:60,textAlign:'center',
+          background:value?'#ebf8ff':'#f7fafc',border:'1px solid #bee3f8',
+          borderRadius:6,padding:'4px 8px',fontSize:13,fontWeight:600,
+          color:value?'#2b6cb0':'#a0aec0',whiteSpace:'nowrap'}}>
+        {value||'--:--'}
+      </button>
+      {open && <TimeWheelPicker value={value} onChange={onChange} onClose={()=>setOpen(false)}/>}
+    </>
+  );
+}
+
 function App() {
   const [tab, setTab]         = useState("sougei");
   const [children, setChildren] = useState([]);
@@ -2793,7 +2878,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                             </div>
                             <div className="rcontent">
                               <div className="rtop">
-                                <input className="tinput" type="time" value={stop.time} onChange={e=>updStop(bin.id,stop.id,"time",e.target.value)}/>
+                                <TimeWheelTrigger value={stop.time} onChange={v=>updStop(bin.id,stop.id,"time",v)}/>
                                 {stop.type==="base" ? (
                                   <><span className="base-lbl">🏫 {JIGYOSHO}</span>{bin.stops.filter(s=>s.type==="base").indexOf(stop) > 0 && (<button className="sdel" onClick={()=>remStop(bin.id,stop.id)}>✕</button>)}</>
                                 ) : stop.type==="child" ? (
