@@ -745,9 +745,12 @@ function TimeWheelPicker({ value, onChange, onClose }) {
     const ref = React.useRef(null);
     const n   = items.length;
 
-    React.useLayoutEffect(() => {
-      if (ref.current) ref.current.scrollTop = selIdx * ITEM_H;
-    }, [selIdx]);
+    React.useEffect(() => {
+      // 初回マウント時のみスクロール位置を設定
+      if (ref.current) {
+        ref.current.scrollTop = selIdx * ITEM_H;
+      }
+    }, []); // eslint-disable-line
 
     function onScroll() {
       if (!ref.current) return;
@@ -799,9 +802,9 @@ function TimeWheelPicker({ value, onChange, onClose }) {
         borderRadius:'20px 20px 0 0',zIndex:2001,padding:'20px 32px 40px',
         display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
         <div style={{display:'flex',alignItems:'center',gap:4}}>
-          <WheelCol items={HOURS}   selIdx={selH} onSel={setSelH}/>
+          <WheelCol key="hours"   items={HOURS}   selIdx={selH} onSel={setSelH}/>
           <span style={{color:'white',fontSize:32,fontWeight:700}}>:</span>
-          <WheelCol items={MINUTES} selIdx={selM} onSel={setSelM}/>
+          <WheelCol key="minutes" items={MINUTES} selIdx={selM} onSel={setSelM}/>
         </div>
         <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center'}}>
           <button onClick={()=>{onChange('');onClose();}}
