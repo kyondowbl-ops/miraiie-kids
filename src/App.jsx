@@ -729,86 +729,123 @@ const AppWithAuth = () => (
 
 export default AppWithAuth;
 
-// ===== 5分刻み時間ピッカー =====
+// ===== 5分刻みiOS風ドラムロール時間ピッカー =====
 function TimeWheelPicker({ value, onChange, onClose }) {
   const H_LIST = ['06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23'];
   const M_LIST = ['00','05','10','15','20','25','30','35','40','45','50','55'];
-  const parts = (value||'13:00').split(':');
-  const initH = Math.max(0, H_LIST.indexOf(parts[0].padStart(2,'0')));
+  const parts  = (value||'13:00').split(':');
+  const initH  = Math.max(0, H_LIST.indexOf(parts[0].padStart(2,'0')));
   const mRound = String(Math.round(parseInt(parts[1]||0)/5)*5%60).padStart(2,'0');
-  const initM = Math.max(0, M_LIST.indexOf(mRound));
+  const initM  = Math.max(0, M_LIST.indexOf(mRound));
   const [selH, setSelH] = React.useState(initH);
   const [selM, setSelM] = React.useState(initM);
+  const ITEM_H = 50;
 
-  const ColStyle = {
-    display:'flex', flexDirection:'column', alignItems:'center',
-    height:220, overflowY:'scroll', scrollSnapType:'y mandatory',
-    scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
-    width:80,
-  };
-  const ItemStyle = (selected) => ({
-    height:44, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center',
-    scrollSnapAlign:'center', fontSize: selected?32:20,
-    fontWeight: selected?700:400, color: selected?'#fff':'#6b7280',
-    cursor:'pointer', userSelect:'none', flexShrink:0,
-  });
+  function WheelCol({ id, items, selIdx, onSel }) {
+    const ref = React.useRef(null);
+    const timer = React.useRef(null);
 
-  const hRef = React.useRef(null);
-  const mRef = React.useRef(null);
+    React.useEffect(() => {
+      if (ref.current) ref.current.scrollTop = selIdx * ITEM_H;
+    }, []);
 
-  React.useEffect(() => {
-    if(hRef.current) hRef.current.scrollTop = initH * 44;
-    if(mRef.current) mRef.current.scrollTop = initM * 44;
-  }, []);
+    const handleScroll = () => {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        if (!ref.current) return;
+        const raw = ref.current.scrollTop;
+        const idx = Math.min(items.length-1, Math.max(0, Math.round(raw / ITEM_H)));
+        ref.current.scrollTop = idx * ITEM_H;
+        onSel(idx);
+      }, 80);
+    };
+
+    return (
+      <div style={{position:'relative', width:88, height:ITEM_H*5, overflow:'hidden', borderRadius:12}}>
+        {/* 選択枠 */}
+        <div style={{
+          position:'absolute', top:ITEM_H*2, left:0, right:0, height:ITEM_H,
+          background:'rgba(255,255,255,0.08)', borderRadius:10,
+          borderTop:'0.5px solid rgba(255,255,255,0.25)',
+          borderBottom:'0.5px solid rgba(255,255,255,0.25)',
+          pointerEvents:'none', zIndex:2
+        }}/>
+        {/* 上フェード */}
+        <div style={{position:'absolute',top:0,left:0,right:0,height:ITEM_H*2,
+          background:'linear-gradient(to bottom,rgba(28,28,30,1) 0%,rgba(28,28,30,0) 100%)',
+          pointerEvents:'none',zIndex:3}}/>
+        {/* 下フェード */}
+        <div style={{position:'absolute',bottom:0,left:0,right:0,height:ITEM_H*2,
+          background:'linear-gradient(to top,rgba(28,28,30,1) 0%,rgba(28,28,30,0) 100%)',
+          pointerEvents:'none',zIndex:3}}/>
+        {/* スクロール本体 */}
+        <div ref={ref} onScroll={handleScroll}
+          style={{
+            height:'100%', overflowY:'scroll',
+            scrollbarWidth:'none', msOverflowStyle:'none',
+            WebkitOverflowScrolling:'touch',
+          }}>
+          <div style={{height:ITEM_H*2}}/>
+          {items.map((v,i) => (
+            <div key={id+v}
+              style={{
+                height:ITEM_H, display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize: selIdx===i ? 34 : 22,
+                fontWeight: selIdx===i ? 600 : 400,
+                color: selIdx===i ? '#ffffff' : 'rgba(255,255,255,0.35)',
+                userSelect:'none', flexShrink:0,
+                transition:'font-size 0.1s, color 0.1s',
+              }}>
+              {v}
+            </div>
+          ))}
+          <div style={{height:ITEM_H*2}}/>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',
-        background:'rgba(0,0,0,0.55)',zIndex:2000}}/>
-      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1c1c1e',
-        borderRadius:'20px 20px 0 0',zIndex:2001,padding:'20px 32px 40px',
-        display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
-
-        {/* セレクト方式（確実に5分刻み） */}
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          {/* 時 */}
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-            <span style={{color:'#9ca3af',fontSize:12}}>時</span>
-            <select value={H_LIST[selH]} onChange={e=>setSelH(H_LIST.indexOf(e.target.value))}
-              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
-                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
-                textAlign:'center',cursor:'pointer',appearance:'none',width:80}}>
-              {H_LIST.map(h=><option key={h} value={h}>{h}</option>)}
-            </select>
-          </div>
-          <span style={{color:'white',fontSize:32,fontWeight:700,marginTop:20}}>:</span>
-          {/* 分（5分刻み） */}
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-            <span style={{color:'#9ca3af',fontSize:12}}>分（5分刻み）</span>
-            <select value={M_LIST[selM]} onChange={e=>setSelM(M_LIST.indexOf(e.target.value))}
-              style={{background:'#2d2d2f',color:'white',border:'1px solid #4b5563',
-                borderRadius:10,padding:'10px 16px',fontSize:24,fontWeight:700,
-                textAlign:'center',cursor:'pointer',appearance:'none',width:80}}>
-              {M_LIST.map(m=><option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
+      <div onClick={onClose} style={{
+        position:'fixed', top:0, left:0, width:'100%', height:'100%',
+        background:'rgba(0,0,0,0.4)', zIndex:2000
+      }}/>
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0,
+        background:'#1c1c1e',
+        borderRadius:'16px 16px 0 0',
+        zIndex:2001,
+        paddingBottom:'env(safe-area-inset-bottom)',
+      }}>
+        {/* ドラムロール */}
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'center',
+          gap:0, padding:'24px 32px 8px',
+        }}>
+          <WheelCol id="h" items={H_LIST} selIdx={selH} onSel={setSelH}/>
+          <span style={{color:'white', fontSize:34, fontWeight:300, margin:'0 4px', marginTop:0}}>:</span>
+          <WheelCol id="m" items={M_LIST} selIdx={selM} onSel={setSelM}/>
         </div>
-
-        {/* 現在の選択値表示 */}
-        <div style={{color:'#60a5fa',fontSize:36,fontWeight:700,letterSpacing:4}}>
-          {H_LIST[selH]}:{M_LIST[selM]}
-        </div>
-
-        <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center'}}>
+        {/* ボタン行 */}
+        <div style={{
+          display:'flex', justifyContent:'space-between', alignItems:'center',
+          padding:'12px 32px 28px',
+        }}>
           <button onClick={()=>{onChange('');onClose();}}
-            style={{background:'#3a3a3c',color:'white',border:'none',borderRadius:22,
-              padding:'12px 28px',fontSize:16,fontWeight:600,cursor:'pointer'}}>
+            style={{
+              background:'rgba(255,255,255,0.12)', color:'white',
+              border:'none', borderRadius:22,
+              padding:'12px 28px', fontSize:17, fontWeight:600, cursor:'pointer',
+            }}>
             リセット
           </button>
           <button onClick={()=>{onChange(H_LIST[selH]+':'+M_LIST[selM]);onClose();}}
-            style={{background:'#3b82f6',color:'white',border:'none',borderRadius:999,
-              width:60,height:60,fontSize:26,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
+            style={{
+              background:'#0a84ff', color:'white', border:'none', borderRadius:999,
+              width:56, height:56, fontSize:26, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
             ✓
           </button>
         </div>
