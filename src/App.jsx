@@ -731,66 +731,105 @@ export default AppWithAuth;
 
 // ===== 5分刻みドラムロール時間ピッカー =====
 function TimeWheelPicker({ value, onChange, onClose }) {
-  const hours = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
-  const minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'];
-  const parts = value ? value.split(':') : ['12','00'];
-  const initH = Math.max(0, hours.indexOf(parts[0].padStart(2,'0')));
-  const roundedM = String(Math.round(parseInt(parts[1]||'0')/5)*5%60).padStart(2,'0');
-  const initM = Math.max(0, minutes.indexOf(roundedM));
+  const HOURS   = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
+  const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const parts = (value||'').split(':');
+  const initH = Math.max(0, HOURS.indexOf((parts[0]||'').padStart(2,'0')));
+  const mRaw  = parseInt(parts[1]||'0');
+  const mRounded = String(Math.round(mRaw/5)*5 % 60).padStart(2,'0');
+  const initM = Math.max(0, MINUTES.indexOf(mRounded));
   const [selH, setSelH] = React.useState(initH);
   const [selM, setSelM] = React.useState(initM);
-  const ITEM_H = 44;
-  function WheelCol({ items, sel, onSel }) {
-    const ref = React.useRef();
-    React.useEffect(() => { if (ref.current) ref.current.scrollTop = sel * ITEM_H; }, []);
-    const handleScroll = (e) => {
-      const idx = Math.round(e.target.scrollTop / ITEM_H);
-      onSel(Math.max(0, Math.min(items.length-1, idx)));
-    };
+  const ITEM_H = 48;
+
+  function WheelCol({ items, selIdx, onSel }) {
+    const listRef = React.useRef(null);
+    // 初期スクロール位置を設定
+    React.useLayoutEffect(() => {
+      if (listRef.current) {
+        listRef.current.scrollTop = selIdx * ITEM_H;
+      }
+    }, []);
+    const onScrollEnd = React.useCallback((e) => {
+      const raw = e.target.scrollTop;
+      const idx = Math.min(items.length - 1, Math.max(0, Math.round(raw / ITEM_H)));
+      onSel(idx);
+      // スナップ位置に吸着
+      e.target.scrollTop = idx * ITEM_H;
+    }, [items.length, onSel]);
     return (
-      <div style={{position:'relative',width:72,height:ITEM_H*5,overflow:'hidden'}}>
-        <div style={{position:'absolute',top:ITEM_H*2,left:0,right:0,height:ITEM_H,
-          background:'rgba(66,153,225,0.15)',borderRadius:8,pointerEvents:'none',zIndex:1,
-          borderTop:'2px solid #4299e1',borderBottom:'2px solid #4299e1'}}/>
-        <div ref={ref} onScroll={handleScroll}
-          style={{height:'100%',overflowY:'scroll',scrollSnapType:'y mandatory',
-            scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
-          <div style={{height:ITEM_H*2}}/>
-          {items.map((v,i)=>(
-            <div key={v} onClick={()=>{onSel(i);if(ref.current)ref.current.scrollTo({top:i*ITEM_H,behavior:'smooth'});}}
-              style={{height:ITEM_H,display:'flex',alignItems:'center',justifyContent:'center',
-                scrollSnapAlign:'start',fontSize:sel===i?28:20,fontWeight:sel===i?700:400,
-                color:sel===i?'#edf2f7':'#718096',cursor:'pointer',userSelect:'none'}}>
-              {v}
-            </div>
+      <div style={{position:'relative', width:80, height:ITEM_H*5, overflow:'hidden'}}>
+        {/* 選択枠ハイライト */}
+        <div style={{
+          position:'absolute', top:ITEM_H*2, left:4, right:4, height:ITEM_H,
+          background:'rgba(66,153,225,0.2)', borderRadius:10, pointerEvents:'none', zIndex:1,
+          borderTop:'2px solid #63b3ed', borderBottom:'2px solid #63b3ed'
+        }}/>
+        {/* 上下グラデーション */}
+        <div style={{position:'absolute',top:0,left:0,right:0,height:ITEM_H*2,
+          background:'linear-gradient(to bottom,#1c1c1e,transparent)',pointerEvents:'none',zIndex:2}}/>
+        <div style={{position:'absolute',bottom:0,left:0,right:0,height:ITEM_H*2,
+          background:'linear-gradient(to top,#1c1c1e,transparent)',pointerEvents:'none',zIndex:2}}/>
+        <div
+          ref={listRef}
+          onScrollCapture={onScrollEnd}
+          style={{
+            height:'100%', overflowY:'scroll',
+            scrollbarWidth:'none', msOverflowStyle:'none',
+            WebkitOverflowScrolling:'touch',
+          }}
+        >
+          {/* 上パディング（中央に先頭要素が来るよう） */}
+          <div style={{height:ITEM_H*2, flexShrink:0}}/>
+          {items.map((v, i) => (
+            <div key={i}
+              style={{
+                height:ITEM_H, display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize: selIdx===i ? 30 : 20,
+                fontWeight: selIdx===i ? 700 : 400,
+                color: selIdx===i ? '#ffffff' : '#6b7280',
+                cursor:'pointer', userSelect:'none', flexShrink:0,
+              }}
+              onClick={() => {
+                onSel(i);
+                if(listRef.current) listRef.current.scrollTop = i * ITEM_H;
+              }}
+            >{v}</div>
           ))}
-          <div style={{height:ITEM_H*2}}/>
+          {/* 下パディング */}
+          <div style={{height:ITEM_H*2, flexShrink:0}}/>
         </div>
       </div>
     );
   }
+
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',
-        background:'rgba(0,0,0,0.5)',zIndex:2000}}/>
-      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1c1c1e',
-        borderRadius:'16px 16px 0 0',zIndex:2001,padding:'16px 24px 32px',
-        display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <WheelCol items={hours} sel={selH} onSel={setSelH}/>
-          <span style={{color:'white',fontSize:28,fontWeight:700}}>:</span>
-          <WheelCol items={minutes} sel={selM} onSel={setSelM}/>
+      <div onClick={onClose} style={{
+        position:'fixed', top:0, left:0, width:'100%', height:'100%',
+        background:'rgba(0,0,0,0.55)', zIndex:2000
+      }}/>
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0,
+        background:'#1c1c1e', borderRadius:'20px 20px 0 0', zIndex:2001,
+        padding:'20px 32px 36px', display:'flex', flexDirection:'column',
+        alignItems:'center', gap:16
+      }}>
+        <div style={{display:'flex', alignItems:'center', gap:4}}>
+          <WheelCol items={HOURS}   selIdx={selH} onSel={setSelH}/>
+          <span style={{color:'white', fontSize:32, fontWeight:700, marginBottom:4}}>:</span>
+          <WheelCol items={MINUTES} selIdx={selM} onSel={setSelM}/>
         </div>
-        <div style={{display:'flex',width:'100%',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
-          <button onClick={()=>{onChange('');onClose();}}
-            style={{background:'#3a3a3c',color:'white',border:'none',borderRadius:20,
-              padding:'10px 24px',fontSize:15,fontWeight:600,cursor:'pointer'}}>
+        <div style={{display:'flex', width:'100%', justifyContent:'space-between', alignItems:'center'}}>
+          <button onClick={()=>{onChange(''); onClose();}}
+            style={{background:'#3a3a3c', color:'white', border:'none', borderRadius:22,
+              padding:'11px 28px', fontSize:16, fontWeight:600, cursor:'pointer'}}>
             リセット
           </button>
-          <button onClick={()=>{onChange(hours[selH]+':'+minutes[selM]);onClose();}}
-            style={{background:'#4299e1',color:'white',border:'none',borderRadius:999,
-              width:52,height:52,fontSize:22,cursor:'pointer',display:'flex',
-              alignItems:'center',justifyContent:'center'}}>
+          <button onClick={()=>{ onChange(HOURS[selH]+':'+MINUTES[selM]); onClose(); }}
+            style={{background:'#3b82f6', color:'white', border:'none', borderRadius:999,
+              width:56, height:56, fontSize:24, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center'}}>
             ✓
           </button>
         </div>
