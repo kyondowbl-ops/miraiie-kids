@@ -2845,69 +2845,100 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 if (!usedTimes.size) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>時刻が入力されていません</div>;
                 const timeSlots = Array.from(usedTimes).sort();
 
-                // 各便ごとにstopsを時刻順に並べてカード形式で表示
-                const colW = Math.max(100, Math.floor((window.innerWidth - 24) / bins.length));
+                // 全stopを時刻順に並べ、同じ時刻は横並び表示
+                // 時刻→[便インデックス→stop]のマップを作成
+                const timeMap = {}; // { "14:30": { 0: stop, 1: stop } }
+                bins.forEach((bin, bi) => {
+                  bin.stops.filter(s=>s.time).forEach(stop => {
+                    if (!timeMap[stop.time]) timeMap[stop.time] = {};
+                    timeMap[stop.time][bi] = stop;
+                  });
+                });
+                const sortedTimes = Object.keys(timeMap).sort();
+
                 return (
-                  <div style={{overflowX:'auto', padding:'0 4px 8px'}}>
-                    <div style={{display:'flex', gap:8, minWidth: bins.length * (colW+8)}}>
+                  <div style={{background:'white', borderRadius:10, margin:'0 4px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', overflow:'hidden'}}>
+                    {/* ヘッダー行 */}
+                    <div style={{display:'flex', borderBottom:'2px solid #2d3748'}}>
+                      <div style={{width:52, flexShrink:0, padding:'8px 4px', background:'#f7fafc', textAlign:'center', color:'#718096', fontSize:11, fontWeight:600}}>時刻</div>
                       {bins.map((bin, bi) => {
                         const car = getCarById(bin.carId);
                         const drv = staff.find(s=>String(s.id)===String(bin.driverId));
-                        const sortedStops = [...bin.stops].filter(s=>s.time).sort((a,b)=>a.time>b.time?1:-1);
                         return (
-                          <div key={bin.id} style={{flex:1, minWidth:colW, background:'white', borderRadius:10, boxShadow:'0 1px 4px rgba(0,0,0,0.08)', overflow:'hidden'}}>
-                            {/* 便ヘッダー */}
-                            <div style={{
-                              background: car?.color ? car.color+'22' : '#f7fafc',
-                              borderTop:'3px solid '+(car?.color||'#cbd5e0'),
-                              padding:'8px 10px', textAlign:'center',
-                              borderBottom:'1px solid #e2e8f0',
-                            }}>
-                              <div style={{fontSize:14, fontWeight:700, color:'#1a202c'}}>{bi+1}便</div>
-                              {car && <div style={{fontSize:12, color:car.color, fontWeight:700}}>🚗 {car.name}</div>}
-                              {drv && <div style={{fontSize:11, color:'#4a5568'}}>{drv.name}</div>}
-                            </div>
-                            {/* stops一覧 */}
-                            <div style={{padding:'4px 0'}}>
-                              {sortedStops.length === 0
-                                ? <div style={{padding:'12px 8px', color:'#a0aec0', fontSize:12, textAlign:'center'}}>データなし</div>
-                                : sortedStops.map((stop, si) => {
-                                    const isBase = stop.type === 'base';
-                                    const child = !isBase && children.find(c=>String(c.id)===String(stop.childId));
-                                    const loc = stop.location==='school' ? '🏫' : stop.location==='home' ? '🏠' : '';
-                                    return (
-                                      <div key={stop.id}>
-                                        {/* 時刻＋内容 */}
-                                        <div style={{display:'flex', alignItems:'center', padding:'5px 10px', gap:8}}>
-                                          <div style={{
-                                            fontSize:12, fontWeight:700, color:'#4a5568',
-                                            minWidth:36, textAlign:'right', flexShrink:0,
-                                          }}>{stop.time}</div>
-                                          {isBase
-                                            ? <div style={{
-                                                flex:1, background:'white', border:'2px solid #e67e22',
-                                                borderRadius:6, padding:'4px 8px',
-                                                fontSize:13, fontWeight:700, color:'#c05621', textAlign:'center',
-                                              }}>みらいえ</div>
-                                            : <div style={{flex:1}}>
-                                                <div style={{fontSize:14, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
-                                                {loc && <div style={{fontSize:11, color:'#718096'}}>{loc}</div>}
-                                              </div>
-                                          }
-                                        </div>
-                                        {/* 矢印（最後以外） */}
-                                        {si < sortedStops.length-1 && (
-                                          <div style={{textAlign:'center', color:'#cbd5e0', fontSize:14, lineHeight:1, margin:'-2px 0'}}>↓</div>
-                                        )}
-                                      </div>
-                                    );
-                                  })
-                              }
-                            </div>
+                          <div key={bin.id} style={{
+                            flex:1, padding:'8px 6px', textAlign:'center',
+                            borderLeft:'1px solid #e2e8f0',
+                            background: car?.color ? car.color+'18' : '#f7fafc',
+                            borderTop:'3px solid '+(car?.color||'#cbd5e0'),
+                          }}>
+                            <div style={{fontSize:13, fontWeight:700, color:'#1a202c'}}>{bi+1}便</div>
+                            {car && <div style={{fontSize:11, color:car.color, fontWeight:700}}>🚗 {car.name}</div>}
+                            {drv && <div style={{fontSize:11, color:'#4a5568'}}>{drv.name}</div>}
                           </div>
                         );
                       })}
                     </div>
+                    {/* 時刻行 */}
+                    {sortedTimes.map((t, ti) => {
+                      const prevT = ti > 0 ? sortedTimes[ti-1] : null;
+                      const rowStops = timeMap[t];
+                      return (
+                        <div key={t}>
+                          {/* 前の時刻との間に矢印（同じ便にstopが連続する場合） */}
+                          {prevT && bins.some((_,bi) => timeMap[prevT][bi] && rowStops[bi]) && (
+                            <div style={{display:'flex', borderBottom:'none'}}>
+                              <div style={{width:52, flexShrink:0}}/>
+                              {bins.map((_,bi) => (
+                                <div key={bi} style={{flex:1, textAlign:'center', color:'#d1d5db', fontSize:13, padding:'1px 0', borderLeft:'1px solid #f0f0f0'}}>
+                                  {timeMap[prevT][bi] && rowStops[bi] ? '↓' : ''}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{
+                            display:'flex', alignItems:'center',
+                            borderBottom:'1px solid #f0f0f0',
+                            background: t.endsWith(':00') ? '#EBF4FF' : 'white',
+                          }}>
+                            {/* 時刻 */}
+                            <div style={{
+                              width:52, flexShrink:0, padding:'6px 6px',
+                              textAlign:'right', fontWeight:700,
+                              fontSize: t.endsWith(':00') ? 13 : 12,
+                              color: t.endsWith(':00') ? '#2b6cb0' : '#4a5568',
+                              borderRight:'2px solid #e2e8f0',
+                            }}>{t}</div>
+                            {/* 各便のcell */}
+                            {bins.map((bin, bi) => {
+                              const stop = rowStops[bi];
+                              const car = getCarById(bin.carId);
+                              const isBase = stop?.type === 'base';
+                              const child = stop && !isBase && children.find(c=>String(c.id)===String(stop.childId));
+                              const loc = stop?.location==='school' ? '🏫' : stop?.location==='home' ? '🏠' : '';
+                              return (
+                                <div key={bi} style={{
+                                  flex:1, padding:'5px 8px',
+                                  borderLeft:'1px solid #e8e8e8',
+                                  minHeight:32,
+                                }}>
+                                  {stop && (isBase
+                                    ? <div style={{
+                                        background:'white', border:'2px solid #e67e22',
+                                        borderRadius:6, padding:'3px 6px',
+                                        fontSize:12, fontWeight:700, color:'#c05621', textAlign:'center',
+                                      }}>みらいえ</div>
+                                    : <div>
+                                        <div style={{fontSize:13, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
+                                        {loc && <div style={{fontSize:10, color:'#718096'}}>{loc}</div>}
+                                      </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
