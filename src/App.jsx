@@ -2853,48 +2853,53 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 const timeSlots = [];
                 for (let m = startMin; m <= endMin; m += 5) timeSlots.push(fromMin(m));
 
+                const colW = Math.max(90, Math.floor((window.innerWidth - 56) / bins.length));
                 return (
-                  <div style={{overflowX:'auto', padding:'8px 0'}}>
-                    <table style={{borderCollapse:'collapse', fontSize:12, minWidth: 80 + bins.length*110}}>
+                  <div style={{overflowX:'auto', background:'white', borderRadius:10, margin:'0 4px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)'}}>
+                    <table style={{borderCollapse:'collapse', width:'100%', tableLayout:'fixed'}}>
+                      <colgroup>
+                        <col style={{width:48}}/>
+                        {bins.map(b=><col key={b.id} style={{width:colW}}/>)}
+                      </colgroup>
                       <thead>
-                        <tr>
-                          <th style={{width:52, padding:'4px 8px', background:'#f7fafc', borderBottom:'2px solid #e2e8f0', textAlign:'center', color:'#718096', fontSize:11}}>時刻</th>
+                        <tr style={{borderBottom:'2px solid #2d3748'}}>
+                          <th style={{padding:'8px 4px', background:'#f7fafc', textAlign:'center', color:'#718096', fontSize:10, fontWeight:600}}>時刻</th>
                           {bins.map((bin, bi) => {
                             const car = getCarById(bin.carId);
                             const drv = staff.find(s=>String(s.id)===String(bin.driverId));
                             return (
                               <th key={bin.id} style={{
-                                width:110, padding:'4px 6px',
-                                background: car?.color ? car.color+'22' : '#f7fafc',
-                                borderBottom:'2px solid '+(car?.color||'#e2e8f0'),
+                                padding:'8px 4px',
                                 borderLeft:'1px solid #e2e8f0',
-                                textAlign:'center', color:'#2d3748',
+                                background: car?.color ? car.color+'18' : '#f7fafc',
+                                borderTop:'3px solid '+(car?.color||'#cbd5e0'),
+                                textAlign:'center',
                               }}>
-                                <div style={{fontWeight:700}}>{bi+1}便</div>
-                                {car && <div style={{fontSize:10, color: car.color, fontWeight:600}}>🚗{car.name}</div>}
-                                {drv && <div style={{fontSize:10, color:'#718096'}}>{drv.name}</div>}
+                                <div style={{fontSize:13, fontWeight:700, color:'#1a202c'}}>{bi+1}便</div>
+                                {car && <div style={{fontSize:11, color:car.color, fontWeight:700, marginTop:1}}>🚗 {car.name}</div>}
+                                {drv && <div style={{fontSize:11, color:'#4a5568', marginTop:1}}>{drv.name}</div>}
                               </th>
                             );
                           })}
                         </tr>
                       </thead>
                       <tbody>
-                        {timeSlots.map((t, ti) => {
+                        {timeSlots.map((t) => {
                           const isHour = t.endsWith(':00');
-                          const cells = bins.map(bin => {
-                            const stop = bin.stops.find(s => s.time === t);
-                            return stop || null;
-                          });
-                          const hasAny = cells.some(Boolean);
+                          const cells = bins.map(bin => bin.stops.find(s => s.time === t) || null);
                           return (
-                            <tr key={t} style={{background: isHour ? '#f0f4f8' : 'white'}}>
+                            <tr key={t} style={{
+                              background: isHour ? '#EBF4FF' : 'white',
+                              borderBottom: isHour ? '1px solid #bee3f8' : '1px solid #f0f0f0',
+                            }}>
                               <td style={{
-                                padding:'2px 8px', textAlign:'right',
-                                color: isHour ? '#2d3748' : '#a0aec0',
+                                padding: isHour ? '6px 6px' : '4px 6px',
+                                textAlign:'right',
+                                color: isHour ? '#2b6cb0' : '#718096',
                                 fontWeight: isHour ? 700 : 400,
-                                fontSize: isHour ? 12 : 11,
-                                borderBottom:'1px solid #edf2f7',
+                                fontSize: isHour ? 13 : 11,
                                 whiteSpace:'nowrap',
+                                borderRight:'2px solid #e2e8f0',
                               }}>
                                 {isHour ? t : t.split(':')[1]}
                               </td>
@@ -2903,27 +2908,30 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                                 const car = getCarById(bin.carId);
                                 return (
                                   <td key={ci} style={{
-                                    padding:'3px 6px',
-                                    borderLeft:'1px solid #e2e8f0',
-                                    borderBottom:'1px solid #edf2f7',
+                                    padding:'4px 6px',
+                                    borderLeft:'1px solid #e8e8e8',
                                     verticalAlign:'middle',
-                                    minHeight:24,
+                                    height: isHour ? 32 : 28,
                                   }}>
                                     {stop && (
                                       stop.type === 'base'
                                         ? <div style={{
-                                            background:'#fff3cd', border:'1px solid #e67e22',
-                                            borderRadius:4, padding:'2px 6px',
-                                            fontSize:11, fontWeight:700, color:'#c05621',
+                                            background:'white',
+                                            border:'2px solid #e67e22',
+                                            borderRadius:5,
+                                            padding:'3px 4px',
+                                            fontSize:12, fontWeight:700, color:'#c05621',
                                             textAlign:'center',
                                           }}>みらいえ</div>
-                                        : <div style={{fontSize:12, color:'#2d3748', lineHeight:1.3}}>
-                                            {(() => {
-                                              const child = children.find(c=>String(c.id)===String(stop.childId));
-                                              const loc = stop.location === 'school' ? '🏫' : stop.location === 'home' ? '🏠' : '';
-                                              return child ? `${child.name.split(' ')[0]} ${loc}` : '?';
-                                            })()}
-                                          </div>
+                                        : (() => {
+                                            const child = children.find(c=>String(c.id)===String(stop.childId));
+                                            const loc = stop.location==='school' ? ' 🏫' : stop.location==='home' ? ' 🏠' : '';
+                                            return (
+                                              <div style={{fontSize:13, color:'#1a202c', fontWeight:500, lineHeight:1.3}}>
+                                                {child ? (child.name.replace(/\s/g,'').slice(0,4)) : '?'}{loc}
+                                              </div>
+                                            );
+                                          })()
                                     )}
                                   </td>
                                 );
