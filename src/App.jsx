@@ -817,6 +817,7 @@ function App() {
   // 送迎表用
   const [sDate, setSDate]     = useState(todayStr);
   const [dir, setDir]         = useState("mukae");
+  const [sougeiView, setSougeiView] = useState("edit"); // "edit" | "list"
 
   // 実績記録用
   const [jYear, setJYear]     = useState(today.getFullYear());
@@ -2820,12 +2821,124 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                   📥 Excel出力
                 </button>
               </div>
-              <div className="dir-tabs">
+              <div className="dir-tabs" style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
                 <button className={`dir-tab mukae ${dir==="mukae"?"active mukae":""}`} onClick={()=>setDir("mukae")}>🏠→🏫 迎え（行き）</button>
                 <button className={`dir-tab okuri ${dir==="okuri"?"active okuri":""}`} onClick={()=>setDir("okuri")}>🏫→🏠 送り（帰り）</button>
+                <button onClick={()=>setSougeiView(v=>v==="list"?"edit":"list")}
+                  style={{marginLeft:'auto',background: sougeiView==="list"?'#2b6cb0':'#e2e8f0',
+                    color: sougeiView==="list"?'white':'#4a5568',border:'none',borderRadius:8,
+                    padding:'6px 14px',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                  {sougeiView==="list"?"✏️ 編集":"📋 一覧"}
+                </button>
               </div>
 
-              {sBins.map((bin, bi) => {
+              {/* ===== 一覧ビュー ===== */}
+              {sougeiView === "list" && (() => {
+                const bins = sBins;
+                if (!bins.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>便がありません</div>;
+
+                // 全stopの時刻を収集して5分単位のタイムライン生成
+                const allTimes = [];
+                bins.forEach(bin => bin.stops.forEach(s => {
+                  if (s.time) allTimes.push(s.time);
+                }));
+                if (!allTimes.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>時刻が入力されていません</div>;
+                allTimes.sort();
+                const minT = allTimes[0];
+                const maxT = allTimes[allTimes.length-1];
+                const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+                const fromMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+                const startMin = Math.floor(toMin(minT)/5)*5;
+                const endMin   = Math.ceil(toMin(maxT)/5)*5;
+                const timeSlots = [];
+                for (let m = startMin; m <= endMin; m += 5) timeSlots.push(fromMin(m));
+
+                return (
+                  <div style={{overflowX:'auto', padding:'8px 0'}}>
+                    <table style={{borderCollapse:'collapse', fontSize:12, minWidth: 80 + bins.length*110}}>
+                      <thead>
+                        <tr>
+                          <th style={{width:52, padding:'4px 8px', background:'#f7fafc', borderBottom:'2px solid #e2e8f0', textAlign:'center', color:'#718096', fontSize:11}}>時刻</th>
+                          {bins.map((bin, bi) => {
+                            const car = getCarById(bin.carId);
+                            const drv = staff.find(s=>String(s.id)===String(bin.driverId));
+                            return (
+                              <th key={bin.id} style={{
+                                width:110, padding:'4px 6px',
+                                background: car?.color ? car.color+'22' : '#f7fafc',
+                                borderBottom:'2px solid '+(car?.color||'#e2e8f0'),
+                                borderLeft:'1px solid #e2e8f0',
+                                textAlign:'center', color:'#2d3748',
+                              }}>
+                                <div style={{fontWeight:700}}>{bi+1}便</div>
+                                {car && <div style={{fontSize:10, color: car.color, fontWeight:600}}>🚗{car.name}</div>}
+                                {drv && <div style={{fontSize:10, color:'#718096'}}>{drv.name}</div>}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {timeSlots.map((t, ti) => {
+                          const isHour = t.endsWith(':00');
+                          const cells = bins.map(bin => {
+                            const stop = bin.stops.find(s => s.time === t);
+                            return stop || null;
+                          });
+                          const hasAny = cells.some(Boolean);
+                          return (
+                            <tr key={t} style={{background: isHour ? '#f0f4f8' : 'white'}}>
+                              <td style={{
+                                padding:'2px 8px', textAlign:'right',
+                                color: isHour ? '#2d3748' : '#a0aec0',
+                                fontWeight: isHour ? 700 : 400,
+                                fontSize: isHour ? 12 : 11,
+                                borderBottom:'1px solid #edf2f7',
+                                whiteSpace:'nowrap',
+                              }}>
+                                {isHour ? t : t.split(':')[1]}
+                              </td>
+                              {cells.map((stop, ci) => {
+                                const bin = bins[ci];
+                                const car = getCarById(bin.carId);
+                                return (
+                                  <td key={ci} style={{
+                                    padding:'3px 6px',
+                                    borderLeft:'1px solid #e2e8f0',
+                                    borderBottom:'1px solid #edf2f7',
+                                    verticalAlign:'middle',
+                                    minHeight:24,
+                                  }}>
+                                    {stop && (
+                                      stop.type === 'base'
+                                        ? <div style={{
+                                            background:'#fff3cd', border:'1px solid #e67e22',
+                                            borderRadius:4, padding:'2px 6px',
+                                            fontSize:11, fontWeight:700, color:'#c05621',
+                                            textAlign:'center',
+                                          }}>みらいえ</div>
+                                        : <div style={{fontSize:12, color:'#2d3748', lineHeight:1.3}}>
+                                            {(() => {
+                                              const child = children.find(c=>String(c.id)===String(stop.childId));
+                                              const loc = stop.location === 'school' ? '🏫' : stop.location === 'home' ? '🏠' : '';
+                                              return child ? `${child.name.split(' ')[0]} ${loc}` : '?';
+                                            })()}
+                                          </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+              {/* ===== 編集ビュー ===== */}
+              {sougeiView === "edit" && sBins.map((bin, bi) => {
                 const selCar = getCarById(bin.carId);
                 return (
                   <div key={bin.id} className="bin-card">
@@ -2906,7 +3019,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                   </div>
                 );
               })}
-              <button className="add-bin-btn" onClick={addBin}>＋ {dir==="mukae"?"迎え":"送り"}の便を追加</button>
+              {sougeiView === "edit" && <button className="add-bin-btn" onClick={addBin}>＋ {dir==="mukae"?"迎え":"送り"}の便を追加</button>}
             </>
           )}
 
