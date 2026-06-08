@@ -2845,94 +2845,69 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 if (!usedTimes.size) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>時刻が入力されていません</div>;
                 const timeSlots = Array.from(usedTimes).sort();
 
-                const colW = Math.max(90, Math.floor((window.innerWidth - 56) / bins.length));
+                // 各便ごとにstopsを時刻順に並べてカード形式で表示
+                const colW = Math.max(100, Math.floor((window.innerWidth - 24) / bins.length));
                 return (
-                  <div style={{overflowX:'auto', background:'white', borderRadius:10, margin:'0 4px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)'}}>
-                    <table style={{borderCollapse:'collapse', width:'100%', tableLayout:'fixed'}}>
-                      <colgroup>
-                        <col style={{width:48}}/>
-                        {bins.map(b=><col key={b.id} style={{width:colW}}/>)}
-                      </colgroup>
-                      <thead>
-                        <tr style={{borderBottom:'2px solid #2d3748'}}>
-                          <th style={{padding:'8px 4px', background:'#f7fafc', textAlign:'center', color:'#718096', fontSize:10, fontWeight:600}}>時刻</th>
-                          {bins.map((bin, bi) => {
-                            const car = getCarById(bin.carId);
-                            const drv = staff.find(s=>String(s.id)===String(bin.driverId));
-                            return (
-                              <th key={bin.id} style={{
-                                padding:'8px 4px',
-                                borderLeft:'1px solid #e2e8f0',
-                                background: car?.color ? car.color+'18' : '#f7fafc',
-                                borderTop:'3px solid '+(car?.color||'#cbd5e0'),
-                                textAlign:'center',
-                              }}>
-                                <div style={{fontSize:13, fontWeight:700, color:'#1a202c'}}>{bi+1}便</div>
-                                {car && <div style={{fontSize:11, color:car.color, fontWeight:700, marginTop:1}}>🚗 {car.name}</div>}
-                                {drv && <div style={{fontSize:11, color:'#4a5568', marginTop:1}}>{drv.name}</div>}
-                              </th>
-                            );
-                          })}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {timeSlots.map((t) => {
-                          const isHour = t.endsWith(':00');
-                          const cells = bins.map(bin => bin.stops.find(s => s.time === t) || null);
-                          return (
-                            <tr key={t} style={{
-                              background: isHour ? '#EBF4FF' : 'white',
-                              borderBottom: isHour ? '1px solid #bee3f8' : '1px solid #f0f0f0',
+                  <div style={{overflowX:'auto', padding:'0 4px 8px'}}>
+                    <div style={{display:'flex', gap:8, minWidth: bins.length * (colW+8)}}>
+                      {bins.map((bin, bi) => {
+                        const car = getCarById(bin.carId);
+                        const drv = staff.find(s=>String(s.id)===String(bin.driverId));
+                        const sortedStops = [...bin.stops].filter(s=>s.time).sort((a,b)=>a.time>b.time?1:-1);
+                        return (
+                          <div key={bin.id} style={{flex:1, minWidth:colW, background:'white', borderRadius:10, boxShadow:'0 1px 4px rgba(0,0,0,0.08)', overflow:'hidden'}}>
+                            {/* 便ヘッダー */}
+                            <div style={{
+                              background: car?.color ? car.color+'22' : '#f7fafc',
+                              borderTop:'3px solid '+(car?.color||'#cbd5e0'),
+                              padding:'8px 10px', textAlign:'center',
+                              borderBottom:'1px solid #e2e8f0',
                             }}>
-                              <td style={{
-                                padding: isHour ? '6px 6px' : '4px 6px',
-                                textAlign:'right',
-                                color: isHour ? '#2b6cb0' : '#718096',
-                                fontWeight: isHour ? 700 : 400,
-                                fontSize: isHour ? 13 : 11,
-                                whiteSpace:'nowrap',
-                                borderRight:'2px solid #e2e8f0',
-                              }}>
-                                {isHour ? t : t.split(':')[1]}
-                              </td>
-                              {cells.map((stop, ci) => {
-                                const bin = bins[ci];
-                                const car = getCarById(bin.carId);
-                                return (
-                                  <td key={ci} style={{
-                                    padding:'4px 6px',
-                                    borderLeft:'1px solid #e8e8e8',
-                                    verticalAlign:'middle',
-                                    height: isHour ? 32 : 28,
-                                  }}>
-                                    {stop && (
-                                      stop.type === 'base'
-                                        ? <div style={{
-                                            background:'white',
-                                            border:'2px solid #e67e22',
-                                            borderRadius:5,
-                                            padding:'3px 4px',
-                                            fontSize:12, fontWeight:700, color:'#c05621',
-                                            textAlign:'center',
-                                          }}>みらいえ</div>
-                                        : (() => {
-                                            const child = children.find(c=>String(c.id)===String(stop.childId));
-                                            const loc = stop.location==='school' ? ' 🏫' : stop.location==='home' ? ' 🏠' : '';
-                                            return (
-                                              <div style={{fontSize:13, color:'#1a202c', fontWeight:500, lineHeight:1.3}}>
-                                                {child ? (child.name.replace(/\s/g,'').slice(0,4)) : '?'}{loc}
+                              <div style={{fontSize:14, fontWeight:700, color:'#1a202c'}}>{bi+1}便</div>
+                              {car && <div style={{fontSize:12, color:car.color, fontWeight:700}}>🚗 {car.name}</div>}
+                              {drv && <div style={{fontSize:11, color:'#4a5568'}}>{drv.name}</div>}
+                            </div>
+                            {/* stops一覧 */}
+                            <div style={{padding:'4px 0'}}>
+                              {sortedStops.length === 0
+                                ? <div style={{padding:'12px 8px', color:'#a0aec0', fontSize:12, textAlign:'center'}}>データなし</div>
+                                : sortedStops.map((stop, si) => {
+                                    const isBase = stop.type === 'base';
+                                    const child = !isBase && children.find(c=>String(c.id)===String(stop.childId));
+                                    const loc = stop.location==='school' ? '🏫' : stop.location==='home' ? '🏠' : '';
+                                    return (
+                                      <div key={stop.id}>
+                                        {/* 時刻＋内容 */}
+                                        <div style={{display:'flex', alignItems:'center', padding:'5px 10px', gap:8}}>
+                                          <div style={{
+                                            fontSize:12, fontWeight:700, color:'#4a5568',
+                                            minWidth:36, textAlign:'right', flexShrink:0,
+                                          }}>{stop.time}</div>
+                                          {isBase
+                                            ? <div style={{
+                                                flex:1, background:'white', border:'2px solid #e67e22',
+                                                borderRadius:6, padding:'4px 8px',
+                                                fontSize:13, fontWeight:700, color:'#c05621', textAlign:'center',
+                                              }}>みらいえ</div>
+                                            : <div style={{flex:1}}>
+                                                <div style={{fontSize:14, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
+                                                {loc && <div style={{fontSize:11, color:'#718096'}}>{loc}</div>}
                                               </div>
-                                            );
-                                          })()
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                          }
+                                        </div>
+                                        {/* 矢印（最後以外） */}
+                                        {si < sortedStops.length-1 && (
+                                          <div style={{textAlign:'center', color:'#cbd5e0', fontSize:14, lineHeight:1, margin:'-2px 0'}}>↓</div>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                              }
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
