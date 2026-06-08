@@ -2837,21 +2837,13 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 const bins = sBins;
                 if (!bins.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>便がありません</div>;
 
-                // 全stopの時刻を収集して5分単位のタイムライン生成
-                const allTimes = [];
+                // 実際にstopが存在する時刻のみ収集
+                const usedTimes = new Set();
                 bins.forEach(bin => bin.stops.forEach(s => {
-                  if (s.time) allTimes.push(s.time);
+                  if (s.time) usedTimes.add(s.time);
                 }));
-                if (!allTimes.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>時刻が入力されていません</div>;
-                allTimes.sort();
-                const minT = allTimes[0];
-                const maxT = allTimes[allTimes.length-1];
-                const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
-                const fromMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-                const startMin = Math.floor(toMin(minT)/5)*5;
-                const endMin   = Math.ceil(toMin(maxT)/5)*5;
-                const timeSlots = [];
-                for (let m = startMin; m <= endMin; m += 5) timeSlots.push(fromMin(m));
+                if (!usedTimes.size) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>時刻が入力されていません</div>;
+                const timeSlots = Array.from(usedTimes).sort();
 
                 const colW = Math.max(90, Math.floor((window.innerWidth - 56) / bins.length));
                 return (
