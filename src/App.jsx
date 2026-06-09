@@ -2822,8 +2822,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 </button>
               </div>
               <div className="dir-tabs" style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
-                <button className={`dir-tab mukae ${dir==="mukae"?"active mukae":""}`} onClick={()=>setDir("mukae")}>🏠→🏫 迎え（行き）</button>
-                <button className={`dir-tab okuri ${dir==="okuri"?"active okuri":""}`} onClick={()=>setDir("okuri")}>🏫→🏠 送り（帰り）</button>
+                <button className={`dir-tab mukae ${dir==="mukae"?"active mukae":""}`} onClick={()=>{setDir("mukae");}}>🏠→🏫 迎え（行き）</button>
+                <button className={`dir-tab okuri ${dir==="okuri"?"active okuri":""}`} onClick={()=>{setDir("okuri");}}>🏫→🏠 送り（帰り）</button>
                 <button onClick={()=>setSougeiView(v=>v==="list"?"edit":"list")}
                   style={{marginLeft:'auto',background: sougeiView==="list"?'#2b6cb0':'#e2e8f0',
                     color: sougeiView==="list"?'white':'#4a5568',border:'none',borderRadius:8,
@@ -2834,8 +2834,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
 
               {/* ===== 一覧ビュー ===== */}
               {sougeiView === "list" && (() => {
-                const bins = sBins;
-                if (!bins.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>便がありません</div>;
+                const bins = schedule[`${sDate}-${dir}`] || [];
+                if (!bins.length) return <div style={{padding:24,textAlign:'center',color:'#a0aec0'}}>{dir==='mukae'?'迎え':'送り'}の便がありません</div>;
 
                 // 実際にstopが存在する時刻のみ収集
                 const usedTimes = new Set();
