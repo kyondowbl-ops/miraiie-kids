@@ -2846,12 +2846,14 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 const timeSlots = Array.from(usedTimes).sort();
 
                 // 全stopを時刻順に並べ、同じ時刻は横並び表示
-                // 時刻→[便インデックス→stop]のマップを作成
-                const timeMap = {}; // { "14:30": { 0: stop, 1: stop } }
+                // 同じ便・同じ時刻に複数stopがある場合も対応
+                // timeMap: { "14:30": { 0: [stop,...], 1: [stop,...] } }
+                const timeMap = {};
                 bins.forEach((bin, bi) => {
                   bin.stops.filter(s=>s.time).forEach(stop => {
                     if (!timeMap[stop.time]) timeMap[stop.time] = {};
-                    timeMap[stop.time][bi] = stop;
+                    if (!timeMap[stop.time][bi]) timeMap[stop.time][bi] = [];
+                    timeMap[stop.time][bi].push(stop);
                   });
                 });
                 const sortedTimes = Object.keys(timeMap).sort();
@@ -2881,61 +2883,66 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                     {/* 時刻行 */}
                     {sortedTimes.map((t, ti) => {
                       const prevT = ti > 0 ? sortedTimes[ti-1] : null;
-                      const rowStops = timeMap[t];
+                      const rowStops = timeMap[t]; // { bi: [stop,...] }
+                      // 各便の最大stop数
+                      const maxRows = Math.max(...bins.map((_,bi) => (rowStops[bi]||[]).length));
                       return (
                         <div key={t}>
-                          {/* 前の時刻との間に矢印（同じ便にstopが連続する場合） */}
-                          {prevT && bins.some((_,bi) => timeMap[prevT][bi] && rowStops[bi]) && (
-                            <div style={{display:'flex', borderBottom:'none'}}>
+                          {/* 矢印 */}
+                          {prevT && bins.some((_,bi) => timeMap[prevT][bi]?.length && rowStops[bi]?.length) && (
+                            <div style={{display:'flex'}}>
                               <div style={{width:52, flexShrink:0}}/>
                               {bins.map((_,bi) => (
                                 <div key={bi} style={{flex:1, textAlign:'center', color:'#d1d5db', fontSize:13, padding:'1px 0', borderLeft:'1px solid #f0f0f0'}}>
-                                  {timeMap[prevT][bi] && rowStops[bi] ? '↓' : ''}
+                                  {timeMap[prevT][bi]?.length && rowStops[bi]?.length ? '↓' : ''}
                                 </div>
                               ))}
                             </div>
                           )}
-                          <div style={{
-                            display:'flex', alignItems:'center',
-                            borderBottom:'1px solid #f0f0f0',
-                            background: t.endsWith(':00') ? '#EBF4FF' : 'white',
-                          }}>
-                            {/* 時刻 */}
-                            <div style={{
-                              width:52, flexShrink:0, padding:'6px 6px',
-                              textAlign:'right', fontWeight:700,
-                              fontSize: t.endsWith(':00') ? 13 : 12,
-                              color: t.endsWith(':00') ? '#2b6cb0' : '#4a5568',
-                              borderRight:'2px solid #e2e8f0',
-                            }}>{t}</div>
-                            {/* 各便のcell */}
-                            {bins.map((bin, bi) => {
-                              const stop = rowStops[bi];
-                              const car = getCarById(bin.carId);
-                              const isBase = stop?.type === 'base';
-                              const child = stop && !isBase && children.find(c=>String(c.id)===String(stop.childId));
-                              const loc = stop?.location==='school' ? '🏫' : stop?.location==='home' ? '🏠' : '';
-                              return (
-                                <div key={bi} style={{
-                                  flex:1, padding:'5px 8px',
-                                  borderLeft:'1px solid #e8e8e8',
-                                  minHeight:32,
-                                }}>
-                                  {stop && (isBase
-                                    ? <div style={{
-                                        background:'white', border:'2px solid #e67e22',
-                                        borderRadius:6, padding:'3px 6px',
-                                        fontSize:12, fontWeight:700, color:'#c05621', textAlign:'center',
-                                      }}>みらいえ</div>
-                                    : <div>
-                                        <div style={{fontSize:13, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
-                                        {loc && <div style={{fontSize:10, color:'#718096'}}>{loc}</div>}
-                                      </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
+                          {/* 同じ時刻に複数stopある場合は複数行に展開 */}
+                          {Array.from({length: maxRows}).map((_, ri) => (
+                            <div key={ri} style={{
+                              display:'flex', alignItems:'center',
+                              borderBottom: ri===maxRows-1 ? '1px solid #e8e8e8' : '1px solid #f5f5f5',
+                              background: t.endsWith(':00') ? '#EBF4FF' : 'white',
+                            }}>
+                              {/* 時刻（最初の行のみ表示） */}
+                              <div style={{
+                                width:52, flexShrink:0, padding:'6px 6px',
+                                textAlign:'right', fontWeight:700,
+                                fontSize: t.endsWith(':00') ? 13 : 12,
+                                color: t.endsWith(':00') ? '#2b6cb0' : '#4a5568',
+                                borderRight:'2px solid #e2e8f0',
+                                visibility: ri===0 ? 'visible' : 'hidden',
+                              }}>{t}</div>
+                              {/* 各便のcell */}
+                              {bins.map((bin, bi) => {
+                                const stop = (rowStops[bi]||[])[ri];
+                                const isBase = stop?.type === 'base';
+                                const child = stop && !isBase && children.find(c=>String(c.id)===String(stop.childId));
+                                const loc = stop?.location==='school' ? '🏫' : stop?.location==='home' ? '🏠' : '';
+                                return (
+                                  <div key={bi} style={{
+                                    flex:1, padding:'5px 8px',
+                                    borderLeft:'1px solid #e8e8e8',
+                                    minHeight:30,
+                                  }}>
+                                    {stop && (isBase
+                                      ? <div style={{
+                                          background:'white', border:'2px solid #e67e22',
+                                          borderRadius:6, padding:'3px 6px',
+                                          fontSize:12, fontWeight:700, color:'#c05621', textAlign:'center',
+                                        }}>みらいえ</div>
+                                      : <div>
+                                          <div style={{fontSize:13, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
+                                          {loc && <div style={{fontSize:10, color:'#718096'}}>{loc}</div>}
+                                        </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
                         </div>
                       );
                     })}
