@@ -2846,17 +2846,22 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 const timeSlots = Array.from(usedTimes).sort();
 
                 // 全stopを時刻順に並べ、同じ時刻は横並び表示
-                // 同じ便・同じ時刻に複数stopがある場合も対応
-                // timeMap: { "14:30": { 0: [stop,...], 1: [stop,...] } }
+                // 時刻未入力のstopは"--:--"として扱う
                 const timeMap = {};
                 bins.forEach((bin, bi) => {
-                  bin.stops.filter(s=>s.time).forEach(stop => {
-                    if (!timeMap[stop.time]) timeMap[stop.time] = {};
-                    if (!timeMap[stop.time][bi]) timeMap[stop.time][bi] = [];
-                    timeMap[stop.time][bi].push(stop);
+                  bin.stops.forEach(stop => {
+                    const key = stop.time || '--:--';
+                    if (!timeMap[key]) timeMap[key] = {};
+                    if (!timeMap[key][bi]) timeMap[key][bi] = [];
+                    timeMap[key][bi].push(stop);
                   });
                 });
-                const sortedTimes = Object.keys(timeMap).sort();
+                // 時刻でソート（--:--は最後）
+                const sortedTimes = Object.keys(timeMap).sort((a,b)=>{
+                  if(a==='--:--') return 1;
+                  if(b==='--:--') return -1;
+                  return a>b?1:-1;
+                });
 
                 return (
                   <div style={{background:'white', borderRadius:10, margin:'0 4px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', overflow:'hidden'}}>
