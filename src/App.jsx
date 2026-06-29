@@ -1614,8 +1614,9 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
       bins.forEach((bin,bi)=>{
         const car = cars.find(c=>c.id===Number(bin.carId));
         const drv = staff.find(s=>s.id===Number(bin.driverId));
+        const carName = car ? car.name.replace(/[🚗🚌🚙🚐]/g,'').trim() : '';
         const label = `${bi+1}便
-${car?car.name:''}
+${carName}
 ${drv?drv.name:''}`;
         ws[R(row,bi+1)]=C(label,{bold:true,fill:car?.color?.replace('#','')||"2d3748",color:"FFFFFF",sz:9});
       });
@@ -1652,8 +1653,8 @@ ${drv?drv.name:''}`;
               });
             } else {
               const child=children.find(c=>String(c.id)===String(stop.childId));
-              const loc=stop.location==='school'?'🏫':stop.location==='home'?'🏠':'';
-              ws[R(row,bi+1)]=C(child?child.name+'  '+loc:'?',{
+              const loc=stop.location==='school'?'学校':stop.location==='home'?'自宅':'';
+              ws[R(row,bi+1)]=C(child?(loc?child.name+' '+loc:child.name):'?',{
                 sz:10,fill,align:"left",
               });
             }
