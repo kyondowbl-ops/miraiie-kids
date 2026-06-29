@@ -818,6 +818,7 @@ function App() {
   const [sDate, setSDate]     = useState(todayStr);
   const [dir, setDir]         = useState("mukae");
   const [sougeiView, setSougeiView] = useState("edit"); // "edit" | "list"
+  const [stopEdit, setStopEdit] = useState(null); // {binId, stopId, time, childName}
 
   // 実績記録用
   const [jYear, setJYear]     = useState(today.getFullYear());
@@ -3061,9 +3062,14 @@ ${drv?drv.name:''}`;
                                           borderRadius:6, padding:'3px 6px',
                                           fontSize:12, fontWeight:700, color:'#c05621', textAlign:'center',
                                         }}>みらいえ</div>
-                                      : <div>
+                                      : <div
+                                          onClick={()=>setStopEdit({binId:bin.id, stopId:stop.id, time:stop.time||'', childName:child?child.name:'?'})}
+                                          style={{cursor:'pointer', padding:'2px 4px', borderRadius:4,
+                                            background:'rgba(66,153,225,0.08)',
+                                            border:'1px dashed #bee3f8'}}>
                                           <div style={{fontSize:13, fontWeight:600, color:'#1a202c'}}>{child ? child.name : '?'}</div>
                                           {loc && <div style={{fontSize:10, color:'#718096'}}>{loc}</div>}
+                                          <div style={{fontSize:9, color:'#90cdf4', marginTop:1}}>タップして編集</div>
                                         </div>
                                     )}
                                   </div>
@@ -3077,6 +3083,64 @@ ${drv?drv.name:''}`;
                   </div>
                 );
               })()}
+
+              {/* ===== 当日変更モーダル ===== */}
+              {stopEdit && (
+                <>
+                  <div onClick={()=>setStopEdit(null)} style={{
+                    position:'fixed',top:0,left:0,width:'100%',height:'100%',
+                    background:'rgba(0,0,0,0.5)',zIndex:3000
+                  }}/>
+                  <div style={{
+                    position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+                    background:'white',borderRadius:16,zIndex:3001,
+                    padding:24,width:300,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'
+                  }}>
+                    <div style={{fontSize:16,fontWeight:700,color:'#1a202c',marginBottom:16}}>
+                      {stopEdit.childName} を編集
+                    </div>
+                    {/* 時刻変更 */}
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:12,color:'#718096',marginBottom:6}}>時刻を変更</div>
+                      <TimeWheelTrigger
+                        value={stopEdit.time}
+                        onChange={v=>{
+                          setStopEdit(p=>({...p,time:v}));
+                        }}
+                      />
+                    </div>
+                    {/* ボタン */}
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <button
+                        onClick={()=>{
+                          updStop(stopEdit.binId, stopEdit.stopId, 'time', stopEdit.time);
+                          setStopEdit(null);
+                        }}
+                        style={{background:'#3182ce',color:'white',border:'none',borderRadius:8,
+                          padding:'10px',fontSize:14,fontWeight:600,cursor:'pointer'}}>
+                        ✓ 時刻を保存
+                      </button>
+                      <button
+                        onClick={()=>{
+                          if(window.confirm(`${stopEdit.childName} をこの便から削除しますか？`)){
+                            remStop(stopEdit.binId, stopEdit.stopId);
+                            setStopEdit(null);
+                          }
+                        }}
+                        style={{background:'#fff5f5',color:'#e53e3e',border:'1px solid #fed7d7',
+                          borderRadius:8,padding:'10px',fontSize:14,fontWeight:600,cursor:'pointer'}}>
+                        🗑 この便から削除
+                      </button>
+                      <button
+                        onClick={()=>setStopEdit(null)}
+                        style={{background:'#f7fafc',color:'#4a5568',border:'1px solid #e2e8f0',
+                          borderRadius:8,padding:'10px',fontSize:14,cursor:'pointer'}}>
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* ===== 編集ビュー ===== */}
               {sougeiView === "edit" && sBins.map((bin, bi) => {
