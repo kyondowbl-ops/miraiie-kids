@@ -1555,6 +1555,131 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
   };
 
   // 送迎表 Excel
+
+  // 送迎表 日単位Excel出力（一覧ビューと同じ形式・3色）
+  const exportSougeiDayXLSX = (dateStr) => {
+    const wb = XLSX.utils.book_new();
+    const d = new Date(dateStr + "T00:00:00");
+    const dow = getDow(d.getFullYear(), d.getMonth()+1, d.getDate());
+    const reiwa = getReiwa(dateStr);
+
+    ["mukae","okuri"].forEach(dir => {
+      const bins = (schedule[`${dateStr}-${dir}`]||[]);
+      if (!bins.length) return;
+
+      const ws = {};
+      const R = (r,c) => XLSX.utils.encode_cell({r,c});
+      const merges = [];
+      const thin = {style:"thin",color:{rgb:"000000"}};
+      const bAll = {top:thin,right:thin,bottom:thin,left:thin};
+
+      const C = (v, opts={}) => ({
+        v: v??'', t:'s',
+        s:{
+          font:{sz:opts.sz||9, name:"MS Gothic", bold:opts.bold||false, color:{rgb:opts.color||"000000"}},
+          alignment:{horizontal:opts.align||"center", vertical:"center", wrapText:true},
+          border:bAll,
+          fill:{patternType:"solid", fgColor:{rgb:opts.fill||"FFFFFF"}, bgColor:{rgb:"FFFFFF"}},
+        }
+      });
+
+      // 全stopの時刻を収集（時刻なしは--:--）
+      const timeMap = {};
+      bins.forEach((bin, bi) => {
+        bin.stops.forEach(stop => {
+          const key = stop.time || '--:--';
+          if (!timeMap[key]) timeMap[key] = {};
+          if (!timeMap[key][bi]) timeMap[key][bi] = [];
+          timeMap[key][bi].push(stop);
+        });
+      });
+      const sortedTimes = Object.keys(timeMap).sort((a,b)=>{
+        if(a==='--:--') return 1;
+        if(b==='--:--') return -1;
+        return a>b?1:-1;
+      });
+
+      const NCOLS = 1 + bins.length;
+      let row = 0;
+
+      // タイトル行
+      for(let c=0;c<NCOLS;c++) ws[R(row,c)]=C('',{fill:"1a3a5c"});
+      ws[R(row,0)]=C(`${reiwa}　${dir==="mukae"?"迎え（行き）":"送り（帰り）"}　${JIGYOSHO_NAME}`,
+        {bold:true,sz:11,fill:"1a3a5c",color:"FFFFFF",align:"left"});
+      merges.push({s:{r:0,c:0},e:{r:0,c:NCOLS-1}});
+      row++;
+
+      // ヘッダー行
+      ws[R(row,0)]=C("時刻",{bold:true,fill:"2d3748",color:"FFFFFF",sz:9});
+      bins.forEach((bin,bi)=>{
+        const car = cars.find(c=>c.id===Number(bin.carId));
+        const drv = staff.find(s=>s.id===Number(bin.driverId));
+        const label = `${bi+1}便
+${car?car.name:''}
+${drv?drv.name:''}`;
+        ws[R(row,bi+1)]=C(label,{bold:true,fill:car?.color?.replace('#','')||"2d3748",color:"FFFFFF",sz:9});
+      });
+      row++;
+
+      // 3色パターン
+      const ROW_COLORS = ["FFFFFF","F0F7FF","FFF8F0"]; // 白・薄青・薄オレンジ交互
+      let colorIdx = 0;
+
+      sortedTimes.forEach((t, ti) => {
+        const rowStops = timeMap[t];
+        const maxRows = Math.max(...bins.map((_,bi)=>(rowStops[bi]||[]).length));
+        const prevT = ti>0?sortedTimes[ti-1]:null;
+        const fill = ROW_COLORS[colorIdx % 3];
+
+        Array.from({length:maxRows}).forEach((_,ri)=>{
+          const isFirst = ri===0;
+          for(let c=0;c<NCOLS;c++) ws[R(row,c)]=C('',{fill});
+
+          // 時刻列
+          ws[R(row,0)]=C(isFirst?t:'',{
+            bold:true, fill,
+            color: t.endsWith(':00')?'2b6cb0':'4a5568',
+            sz: t.endsWith(':00')?11:9,
+          });
+
+          // 各便
+          bins.forEach((bin,bi)=>{
+            const stop=(rowStops[bi]||[])[ri];
+            if(!stop) return;
+            if(stop.type==='base'){
+              ws[R(row,bi+1)]=C("みらいえ",{
+                bold:true,sz:10,color:"c05621",fill:"FFF3CD",
+              });
+            } else {
+              const child=children.find(c=>String(c.id)===String(stop.childId));
+              const loc=stop.location==='school'?'🏫':stop.location==='home'?'🏠':'';
+              ws[R(row,bi+1)]=C(child?child.name+'  '+loc:'?',{
+                sz:10,fill,align:"left",
+              });
+            }
+          });
+          row++;
+        });
+        colorIdx++;
+      });
+
+      ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:NCOLS-1}});
+      ws['!cols']=[{wch:8},...bins.map(()=>({wch:16}))];
+      ws['!rows']=[{hpt:18},{hpt:28},...Array(row-2).fill({hpt:18})];
+      ws['!merges']=merges;
+      ws['!pageSetup']={orientation:"portrait",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:1};
+      ws['!margins']={left:0.3,right:0.3,top:0.3,bottom:0.3,header:0,footer:0};
+
+      XLSX.utils.book_append_sheet(wb, ws, dir==="mukae"?"迎え":"送り");
+    });
+
+    if(wb.SheetNames.length===0){
+      alert("出力するデータがありません");
+      return;
+    }
+    XLSX.writeFile(wb, `送迎表_${dateStr}.xlsx`);
+  };
+
   const exportSougeiXLSX = (year, month) => {
     const wb = XLSX.utils.book_new();
     const daysInMon = getDaysInMonth(year, month);
@@ -2814,10 +2939,7 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
                 <input className="date-input" type="date" value={sDate} onChange={e=>setSDate(e.target.value)} />
                 <span className="date-display">{getReiwa(sDate)}</span>
                 <button className="excel-btn" style={{marginLeft:"auto"}}
-                  onClick={()=>{
-                    const d = new Date(sDate+"T00:00:00");
-                    exportSougeiExcel(d.getFullYear(), d.getMonth()+1);
-                  }}>
+                  onClick={()=>exportSougeiDayXLSX(sDate)}>
                   📥 Excel出力
                 </button>
               </div>
