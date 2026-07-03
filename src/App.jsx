@@ -311,6 +311,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:#eef2f7;color:#1a202c;min-
 .nav-tab.t-saibai.active{border-bottom-color:#2b6cb0;}
 .nav-tab.t-dl.active{border-bottom-color:#276749;}
 .nav-tab.t-shusseki.active{border-bottom-color:#d69e2e;}
+.nav-tab.t-kesseki.active{border-bottom-color:#e53e3e;}
 
 /* 出席予定表 */
 .shusseki-ctrl{background:white;border-radius:12px;padding:11px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -817,7 +818,9 @@ function App() {
   // 送迎表用
   const [sDate, setSDate]     = useState(todayStr);
   const [dir, setDir]         = useState("mukae");
-  const [sougeiView, setSougeiView] = useState("edit"); // "edit" | "list"
+  const [sougeiView, setSougeiView] = useState("edit");
+  const [kessekiRecords, setKessekiRecords] = useState([]); // [{id,childId,date,reason,createdAt}]
+  const [kessekiForm, setKessekiForm] = useState({childId:'',date:'',reason:''}); // "edit" | "list"
   const [stopEdit, setStopEdit] = useState(null); // {binId, stopId, time, childName}
 
   // 実績記録用
@@ -1190,6 +1193,15 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
             }
           });
           setShussekiData(newShusseki);
+        }
+        // 欠席記録
+        const kessekiDbData = await dbLoad("kesseki_records");
+        if (kessekiDbData) {
+          kessekiDbData.forEach(row => {
+            if (row.data_key === "kesseki-all" && Array.isArray(row.data)) {
+              setKessekiRecords(row.data);
+            }
+          });
         }
         // 名簿
         const masterData = await dbLoad("master_data");
@@ -2922,6 +2934,7 @@ ${drv?drv.name:''}`;
             { key:"saibai",  label:"📊 采配簿",     cls:"t-saibai"  },
             { key:"master",  label:"⚙️ 名簿管理",  cls:"t-master"  },
             { key:"shusseki", label:"📅 出席予定", cls:"t-shusseki" },
+            { key:"kesseki",  label:"❌ 欠席記録",  cls:"t-kesseki"  },
             { key:"dl",      label:"📥 ダウンロード", cls:"t-dl"      },
           ].map(t => (
             <button key={t.key} className={`nav-tab ${t.cls} ${tab===t.key?"active":""}`} onClick={()=>setTab(t.key)}>
@@ -4587,6 +4600,145 @@ ${drv?drv.name:''}`;
                   </div>
                 ))}
               </>
+            );
+          })()}
+
+          {/* ===================================================
+              欠席記録
+          =================================================== */}
+          {tab === "kesseki" && (() => {
+            const saveKesseki = async () => {
+              if (!kessekiForm.childId || !kessekiForm.date) {
+                alert("利用者と日付を入力してください");
+                return;
+              }
+              const rec = {
+                id: Date.now(),
+                childId: kessekiForm.childId,
+                date: kessekiForm.date,
+                reason: kessekiForm.reason,
+                createdAt: new Date().toISOString(),
+              };
+              const newRecs = [rec, ...kessekiRecords];
+              setKessekiRecords(newRecs);
+              if (supabase) {
+                await supabase.from("kesseki_records").upsert({
+                  data_key: "kesseki-all",
+                  data: newRecs,
+                  updated_at: new Date().toISOString(),
+                });
+              }
+              setKessekiForm({childId:"",date:"",reason:""});
+            };
+
+            const deleteKesseki = async (id) => {
+              if (!window.confirm("削除しますか？")) return;
+              const newRecs = kessekiRecords.filter(r=>r.id!==id);
+              setKessekiRecords(newRecs);
+              if (supabase) {
+                await supabase.from("kesseki_records").upsert({
+                  data_key: "kesseki-all",
+                  data: newRecs,
+                  updated_at: new Date().toISOString(),
+                });
+              }
+            };
+
+            const months = [...new Set(kessekiRecords.map(r=>r.date.slice(0,7)))].sort().reverse();
+            const [filterMonth, setFilterMonth] = React.useState("");
+            const [filterChild, setFilterChild] = React.useState("");
+            const filtered = kessekiRecords
+              .filter(r=>!filterMonth || r.date.startsWith(filterMonth))
+              .filter(r=>!filterChild || String(r.childId)===String(filterChild))
+              .sort((a,b)=>b.date>a.date?1:-1);
+
+            return (
+              <div style={{padding:"12px 0"}}>
+                <div style={{background:"white",borderRadius:12,padding:16,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"#1a202c",marginBottom:12}}>欠席を記録</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    <div>
+                      <div style={{fontSize:12,color:"#718096",marginBottom:4}}>利用者</div>
+                      <select value={kessekiForm.childId} onChange={e=>setKessekiForm(p=>({...p,childId:e.target.value}))}
+                        style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14}}>
+                        <option value="">選択してください</option>
+                        {children.map(c=><option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{fontSize:12,color:"#718096",marginBottom:4}}>日付</div>
+                      <input type="date" value={kessekiForm.date}
+                        onChange={e=>setKessekiForm(p=>({...p,date:e.target.value}))}
+                        style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:12,color:"#718096",marginBottom:4}}>欠席理由</div>
+                      <select value={kessekiForm.reason} onChange={e=>setKessekiForm(p=>({...p,reason:e.target.value}))}
+                        style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14}}>
+                        <option value="">選択してください</option>
+                        <option value="体調不良">体調不良</option>
+                        <option value="発熱">発熱</option>
+                        <option value="病院">病院</option>
+                        <option value="家庭の都合">家庭の都合</option>
+                        <option value="学校行事">学校行事</option>
+                        <option value="その他">その他</option>
+                      </select>
+                    </div>
+                    <button onClick={saveKesseki}
+                      style={{background:"#e53e3e",color:"white",border:"none",borderRadius:8,
+                        padding:"10px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                      記録する
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{background:"white",borderRadius:12,padding:12,marginBottom:12,
+                  boxShadow:"0 1px 4px rgba(0,0,0,0.08)",display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+                    style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,flex:1}}>
+                    <option value="">全期間</option>
+                    {months.map(m=><option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
+                    style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,flex:1}}>
+                    <option value="">全利用者</option>
+                    {children.map(c=><option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+                  <div style={{padding:"10px 14px",background:"#fff5f5",borderBottom:"1px solid #fed7d7",
+                    fontSize:13,fontWeight:700,color:"#c53030"}}>
+                    欠席記録一覧　{filtered.length}件
+                  </div>
+                  {filtered.length===0
+                    ? <div style={{padding:24,textAlign:"center",color:"#a0aec0",fontSize:13}}>記録がありません</div>
+                    : filtered.map(rec=>{
+                        const child = children.find(c=>String(c.id)===String(rec.childId));
+                        const d = new Date(rec.date+"T00:00:00");
+                        const dow = ["日","月","火","水","木","金","土"][d.getDay()];
+                        return (
+                          <div key={rec.id} style={{display:"flex",alignItems:"center",padding:"10px 14px",
+                            borderBottom:"1px solid #f0f0f0"}}>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:13,fontWeight:700,color:"#1a202c"}}>{child?.name||"?"}</div>
+                              <div style={{fontSize:12,color:"#4a5568",marginTop:2}}>{rec.date}（{dow}）</div>
+                              {rec.reason&&<div style={{display:"inline-block",marginTop:4,
+                                background:"#fff5f5",color:"#c53030",border:"1px solid #fed7d7",
+                                borderRadius:4,padding:"1px 8px",fontSize:11,fontWeight:600}}>
+                                {rec.reason}
+                              </div>}
+                            </div>
+                            <button onClick={()=>deleteKesseki(rec.id)}
+                              style={{background:"none",border:"none",color:"#fc8181",fontSize:20,cursor:"pointer",padding:"4px 8px"}}>
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              </div>
             );
           })()}
 
