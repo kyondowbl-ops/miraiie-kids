@@ -835,15 +835,8 @@ function App() {
     const rec = {id:Date.now(), childId:kessekiForm.childId, date:kessekiForm.date, reason:reasonText, createdAt:new Date().toISOString()};
     const newRecs = [rec, ...kessekiRecords];
     setKessekiRecords(newRecs);
-    // kesseki_recordsテーブルに保存（テーブルがなくてもエラーを無視）
-    try {
-      if (supabase) {
-        await supabase.from("kesseki_records").upsert(
-          {data_key:"kesseki-all", data:newRecs, updated_at:new Date().toISOString()},
-          {onConflict:"data_key"}
-        );
-      }
-    } catch(e) { console.warn("kesseki_records save failed:", e); }
+    // 既存のshusseki_dataテーブルに保存（data_key: "kesseki-all"）
+    await dbUpsert("shusseki_data", "data_key", "kesseki-all", newRecs);
     // 実績のoverridesに備考として記載
     // overridesのキー形式: childId-YYYY-M-D（ゼロパディングなし）
     if (reasonText) {
@@ -865,9 +858,7 @@ function App() {
     if (!window.confirm("削除しますか？")) return;
     const newRecs = kessekiRecords.filter(r=>r.id!==id);
     setKessekiRecords(newRecs);
-    if (supabase) {
-      await supabase.from("kesseki_records").upsert({data_key:"kesseki-all", data:newRecs, updated_at:new Date().toISOString()});
-    }
+    await dbUpsert("shusseki_data", "data_key", "kesseki-all", newRecs);
   };
   const [stopEdit, setStopEdit] = useState(null); // {binId, stopId, time, childName}
 
@@ -1242,8 +1233,8 @@ ${dowStr}`,{bold:true,fill,color:"FFFFFF"});
           });
           setShussekiData(newShusseki);
         }
-        // 欠席記録
-        const kessekiDbData = await dbLoad("kesseki_records");
+        // 欠席記録（shusseki_dataテーブルのdata_key="kesseki-all"で管理）
+        const kessekiDbData = await dbLoad("shusseki_data");
         if (kessekiDbData) {
           kessekiDbData.forEach(row => {
             if (row.data_key === "kesseki-all" && Array.isArray(row.data)) {
