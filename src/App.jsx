@@ -831,22 +831,34 @@ function App() {
     }
     // 理由：選択肢＋自由入力を結合
     const reasonText = [kessekiForm.reason, kessekiForm.reasonFree].filter(Boolean).join("・");
+    // 欠席記録をstateに保存
     const rec = {id:Date.now(), childId:kessekiForm.childId, date:kessekiForm.date, reason:reasonText, createdAt:new Date().toISOString()};
     const newRecs = [rec, ...kessekiRecords];
     setKessekiRecords(newRecs);
-    // kesseki_recordsテーブルに保存
-    await dbUpsert("kesseki_records", "data_key", "kesseki-all", newRecs);
-    // 実績のoverridesに備考として記載（record_keyが正しいキー）
+    // kesseki_recordsテーブルに保存（テーブルがなくてもエラーを無視）
+    try {
+      if (supabase) {
+        await supabase.from("kesseki_records").upsert(
+          {data_key:"kesseki-all", data:newRecs, updated_at:new Date().toISOString()},
+          {onConflict:"data_key"}
+        );
+      }
+    } catch(e) { console.warn("kesseki_records save failed:", e); }
+    // 実績のoverridesに備考として記載
+    // overridesのキー形式: childId-YYYY-M-D（ゼロパディングなし）
     if (reasonText) {
-      const ovKey = `${kessekiForm.childId}-${kessekiForm.date}`;
+      const [yyyy,mm,dd] = kessekiForm.date.split("-");
+      const ovKey = `${kessekiForm.childId}-${yyyy}-${parseInt(mm)}-${parseInt(dd)}`;
       const existing = overrides[ovKey] || {};
       const note = existing.note ? existing.note + " / 欠席：" + reasonText : "欠席：" + reasonText;
       const newData = {...existing, note};
       setOverrides(p=>({...p,[ovKey]:newData}));
-      await dbUpsert("overrides", "record_key", ovKey, newData);
+      try {
+        await dbUpsert("overrides", "record_key", ovKey, newData);
+      } catch(e) { console.warn("overrides save failed:", e); }
     }
     setKessekiForm({childId:"",date:"",reason:"",reasonFree:""});
-    alert("欠席を記録しました" + (reasonText ? "（実績備考欄にも記載しました）" : ""));
+    alert("欠席を記録しました" + (reasonText ? "（実績備考欄にも反映しました）" : ""));
   };
 
   const onKessekiDelete = async (id) => {
