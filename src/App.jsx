@@ -820,7 +820,9 @@ function App() {
   const [dir, setDir]         = useState("mukae");
   const [sougeiView, setSougeiView] = useState("edit");
   const [kessekiRecords, setKessekiRecords] = useState([]); // [{id,childId,date,reason,createdAt}]
-  const [kessekiForm, setKessekiForm] = useState({childId:'',date:'',reason:''}); // "edit" | "list"
+  const [kessekiForm, setKessekiForm] = useState({childId:"",date:"",reason:""});
+  const [kessekiFilterMonth, setKessekiFilterMonth] = useState("");
+  const [kessekiFilterChild, setKessekiFilterChild] = useState(""); // "edit" | "list"
   const [stopEdit, setStopEdit] = useState(null); // {binId, stopId, time, childName}
 
   // 実績記録用
@@ -4628,7 +4630,22 @@ ${drv?drv.name:''}`;
                   updated_at: new Date().toISOString(),
                 });
               }
+              // 実績記録の備考欄に欠席理由を記載
+              if (kessekiForm.reason) {
+                const ovKey = `${kessekiForm.childId}-${kessekiForm.date}`;
+                const existing = overrides[ovKey] || {};
+                const note = existing.note ? existing.note + " / 欠席：" + kessekiForm.reason : "欠席：" + kessekiForm.reason;
+                setOverrides(p => ({...p, [ovKey]: {...existing, note}}));
+                if (supabase) {
+                  await supabase.from("overrides").upsert({
+                    key: ovKey,
+                    data: {...existing, note},
+                    updated_at: new Date().toISOString(),
+                  });
+                }
+              }
               setKessekiForm({childId:"",date:"",reason:""});
+              alert("欠席を記録しました" + (kessekiForm.reason ? "（実績備考欄にも記載しました）" : ""));
             };
 
             const deleteKesseki = async (id) => {
@@ -4645,11 +4662,9 @@ ${drv?drv.name:''}`;
             };
 
             const months = [...new Set(kessekiRecords.map(r=>r.date.slice(0,7)))].sort().reverse();
-            const [filterMonth, setFilterMonth] = React.useState("");
-            const [filterChild, setFilterChild] = React.useState("");
             const filtered = kessekiRecords
-              .filter(r=>!filterMonth || r.date.startsWith(filterMonth))
-              .filter(r=>!filterChild || String(r.childId)===String(filterChild))
+              .filter(r=>!kessekiFilterMonth || r.date.startsWith(kessekiFilterMonth))
+              .filter(r=>!kessekiFilterChild || String(r.childId)===String(kessekiFilterChild))
               .sort((a,b)=>b.date>a.date?1:-1);
 
             return (
@@ -4694,12 +4709,12 @@ ${drv?drv.name:''}`;
 
                 <div style={{background:"white",borderRadius:12,padding:12,marginBottom:12,
                   boxShadow:"0 1px 4px rgba(0,0,0,0.08)",display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+                  <select value={kessekiFilterMonth} onChange={e=>setKessekiFilterMonth(e.target.value)}
                     style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,flex:1}}>
                     <option value="">全期間</option>
                     {months.map(m=><option key={m} value={m}>{m}</option>)}
                   </select>
-                  <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
+                  <select value={kessekiFilterChild} onChange={e=>setKessekiFilterChild(e.target.value)}
                     style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,flex:1}}>
                     <option value="">全利用者</option>
                     {children.map(c=><option key={c.id} value={String(c.id)}>{c.name}</option>)}
