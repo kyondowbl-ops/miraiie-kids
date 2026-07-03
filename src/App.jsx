@@ -2964,17 +2964,17 @@ ${drv?drv.name:''}`;
         {/* ナビ */}
         <div className="nav">
           {[
-            { key:"sougei",  label:"🚌 送迎表",    cls:"t-sougei"  },
-            { key:"carsummary", label:"🚗 車種別",  cls:"t-sougei"  },
-            { key:"jisseki", label:"📋 実績記録",   cls:"t-jisseki" },
-            { key:"kojin",   label:"📓 個人記録",   cls:"t-kojin"   },
-            { key:"joko",    label:"🚗 乗降記録",   cls:"t-joko"    },
-            { key:"gyomu",   label:"📔 業務日誌",   cls:"t-gyomu"   },
-            { key:"saibai",  label:"📊 采配簿",     cls:"t-saibai"  },
-            { key:"master",  label:"⚙️ 名簿管理",  cls:"t-master"  },
-            { key:"shusseki", label:"📅 出席予定", cls:"t-shusseki" },
-            { key:"kesseki",  label:"❌ 欠席記録",  cls:"t-kesseki"  },
-            { key:"dl",      label:"📥 ダウンロード", cls:"t-dl"      },
+            { key:"sougei",   label:"🚌 送迎表",      cls:"t-sougei"  },
+            { key:"kesseki",  label:"❌ 欠席記録",    cls:"t-kesseki" },
+            { key:"jisseki",  label:"📋 実績記録",    cls:"t-jisseki" },
+            { key:"carsummary", label:"🚗 車種別",    cls:"t-sougei"  },
+            { key:"kojin",    label:"📓 個人記録",    cls:"t-kojin"   },
+            { key:"joko",     label:"🚗 乗降記録",    cls:"t-joko"    },
+            { key:"gyomu",    label:"📔 業務日誌",    cls:"t-gyomu"   },
+            { key:"saibai",   label:"📊 采配簿",      cls:"t-saibai"  },
+            { key:"master",   label:"⚙️ 名簿管理",   cls:"t-master"  },
+            { key:"shusseki", label:"📅 出席予定",   cls:"t-shusseki"},
+            { key:"dl",       label:"📥 ダウンロード", cls:"t-dl"     },
           ].map(t => (
             <button key={t.key} className={`nav-tab ${t.cls} ${tab===t.key?"active":""}`} onClick={()=>setTab(t.key)}>
               {t.label}
