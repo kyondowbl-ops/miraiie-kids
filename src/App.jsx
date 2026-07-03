@@ -820,7 +820,7 @@ function App() {
   const [dir, setDir]         = useState("mukae");
   const [sougeiView, setSougeiView] = useState("edit");
   const [kessekiRecords, setKessekiRecords] = useState([]); // [{id,childId,date,reason,createdAt}]
-  const [kessekiForm, setKessekiForm] = useState({childId:"",date:"",reason:""});
+  const [kessekiForm, setKessekiForm] = useState({childId:"",date:"",reason:"",reasonFree:""});
   const [kessekiFilterMonth, setKessekiFilterMonth] = useState("");
   const [kessekiFilterChild, setKessekiFilterChild] = useState("");
 
@@ -829,22 +829,24 @@ function App() {
       alert("利用者と日付を入力してください");
       return;
     }
-    const rec = {id:Date.now(), childId:kessekiForm.childId, date:kessekiForm.date, reason:kessekiForm.reason, createdAt:new Date().toISOString()};
+    // 理由：選択肢＋自由入力を結合
+    const reasonText = [kessekiForm.reason, kessekiForm.reasonFree].filter(Boolean).join("・");
+    const rec = {id:Date.now(), childId:kessekiForm.childId, date:kessekiForm.date, reason:reasonText, createdAt:new Date().toISOString()};
     const newRecs = [rec, ...kessekiRecords];
     setKessekiRecords(newRecs);
-    if (supabase) {
-      await supabase.from("kesseki_records").upsert({data_key:"kesseki-all", data:newRecs, updated_at:new Date().toISOString()});
-    }
-    // 実績備考欄に欠席理由を記載
-    if (kessekiForm.reason) {
+    // kesseki_recordsテーブルに保存
+    await dbUpsert("kesseki_records", "data_key", "kesseki-all", newRecs);
+    // 実績のoverridesに備考として記載（record_keyが正しいキー）
+    if (reasonText) {
       const ovKey = `${kessekiForm.childId}-${kessekiForm.date}`;
       const existing = overrides[ovKey] || {};
-      const note = existing.note ? existing.note + " / 欠席：" + kessekiForm.reason : "欠席：" + kessekiForm.reason;
-      setOverrides(p=>({...p,[ovKey]:{...existing,note}}));
-      dbUpsert("overrides","key",ovKey,{...existing,note}).catch(()=>{});
+      const note = existing.note ? existing.note + " / 欠席：" + reasonText : "欠席：" + reasonText;
+      const newData = {...existing, note};
+      setOverrides(p=>({...p,[ovKey]:newData}));
+      await dbUpsert("overrides", "record_key", ovKey, newData);
     }
-    setKessekiForm({childId:"",date:"",reason:""});
-    alert("欠席を記録しました" + (kessekiForm.reason ? "（実績備考欄にも記載しました）" : ""));
+    setKessekiForm({childId:"",date:"",reason:"",reasonFree:""});
+    alert("欠席を記録しました" + (reasonText ? "（実績備考欄にも記載しました）" : ""));
   };
 
   const onKessekiDelete = async (id) => {
@@ -4672,6 +4674,13 @@ ${drv?drv.name:''}`;
                       <option value="学校行事">学校行事</option>
                       <option value="その他">その他</option>
                     </select>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>自由入力（任意）</div>
+                    <input type="text" value={kessekiForm.reasonFree||""}
+                      placeholder="詳細を入力..."
+                      onChange={e=>setKessekiForm(p=>({...p,reasonFree:e.target.value}))}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
                   </div>
                   <button onClick={onKessekiSave}
                     style={{background:"#e53e3e",color:"white",border:"none",borderRadius:8,
