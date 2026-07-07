@@ -820,7 +820,16 @@ function App() {
   const [dir, setDir]         = useState("mukae");
   const [sougeiView, setSougeiView] = useState("edit");
   const [kessekiRecords, setKessekiRecords] = useState([]); // [{id,childId,date,reason,createdAt}]
-  const [kessekiForm, setKessekiForm] = useState({childId:"",date:"",reason:"",reasonFree:""});
+  const [kessekiForm, setKessekiForm] = useState({
+    childId:"", date:"", reason:"", reasonFree:"",
+    yoteiDate:"",        // 欠席の予測日
+    renrakuSha:"",       // 連絡をくれた者
+    renrakuShudan:"",    // 連絡の手段
+    riyu:"",             // 欠席の理由・内容
+    jikoNaiyou:"",       // 次回の出席・施設の内容
+    biko:"",             // 備考
+    jikaiYotei:"",       // 次回利用予定日
+  });
   const [kessekiFilterMonth, setKessekiFilterMonth] = useState("");
   const [kessekiFilterChild, setKessekiFilterChild] = useState("");
 
@@ -832,7 +841,19 @@ function App() {
     // 理由：選択肢＋自由入力を結合
     const reasonText = [kessekiForm.reason, kessekiForm.reasonFree].filter(Boolean).join("・");
     // 欠席記録をstateに保存
-    const rec = {id:Date.now(), childId:kessekiForm.childId, date:kessekiForm.date, reason:reasonText, createdAt:new Date().toISOString()};
+    const rec = {
+      id:Date.now(),
+      childId:kessekiForm.childId,
+      date:kessekiForm.date,
+      reason:reasonText,
+      yoteiDate:kessekiForm.yoteiDate||"",
+      renrakuSha:kessekiForm.renrakuSha||"",
+      renrakuShudan:kessekiForm.renrakuShudan||"",
+      jikoNaiyou:kessekiForm.jikoNaiyou||"",
+      jikaiYotei:kessekiForm.jikaiYotei||"",
+      biko:kessekiForm.biko||"",
+      createdAt:new Date().toISOString(),
+    };
     const newRecs = [rec, ...kessekiRecords];
     setKessekiRecords(newRecs);
     // 既存のshusseki_dataテーブルに保存（data_key: "kesseki-all"）
@@ -850,7 +871,7 @@ function App() {
         await dbUpsert("overrides", "record_key", ovKey, newData);
       } catch(e) { console.warn("overrides save failed:", e); }
     }
-    setKessekiForm({childId:"",date:"",reason:"",reasonFree:""});
+    setKessekiForm({childId:"",date:"",reason:"",reasonFree:"",yoteiDate:"",renrakuSha:"",renrakuShudan:"",jikoNaiyou:"",jikaiYotei:"",biko:""});
     alert("欠席を記録しました" + (reasonText ? "（実績備考欄にも反映しました）" : ""));
   };
 
@@ -859,6 +880,61 @@ function App() {
     const newRecs = kessekiRecords.filter(r=>r.id!==id);
     setKessekiRecords(newRecs);
     await dbUpsert("shusseki_data", "data_key", "kesseki-all", newRecs);
+  };
+
+  const exportKessekiXLSX = (rec) => {
+    const child = children.find(c=>String(c.id)===String(rec.childId));
+    const d = new Date(rec.date+"T00:00:00");
+    const dow = ["日","月","火","水","木","金","土"][d.getDay()];
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const R = (r,c) => XLSX.utils.encode_cell({r,c});
+    const thin = {style:"thin",color:{rgb:"000000"}};
+    const bAll = {top:thin,right:thin,bottom:thin,left:thin};
+    const C = (v,opts={}) => ({
+      v:v??"", t:"s",
+      s:{
+        font:{sz:opts.sz||10,name:"MS Gothic",bold:opts.bold||false,color:{rgb:opts.color||"000000"}},
+        alignment:{horizontal:opts.align||"left",vertical:"center",wrapText:true},
+        border:bAll,
+        fill:{patternType:"solid",fgColor:{rgb:opts.fill||"FFFFFF"},bgColor:{rgb:"FFFFFF"}},
+      }
+    });
+    const merges = [];
+    let row = 0;
+
+    // タイトル
+    ws[R(row,0)] = C("欠席連絡票",{sz:16,bold:true,align:"center"});
+    ws[R(row,1)] = C("",{sz:16});
+    merges.push({s:{r:row,c:0},e:{r:row,c:1}});
+    row++;
+
+    const rows = [
+      ["利用者名",    child?.name||""],
+      ["欠席した日付", `${rec.date}（${dow}）`],
+      ["欠席の予測日", rec.yoteiDate||""],
+      ["連絡をくれた者", rec.renrakuSha||""],
+      ["連絡の手段",   rec.renrakuShudan||""],
+      ["欠席の理由・内容", rec.reason||""],
+      ["次回の出席・施設の内容", rec.jikoNaiyou||""],
+      ["備考",         rec.biko||""],
+      ["次回利用予定日", rec.jikaiYotei||""],
+    ];
+
+    rows.forEach(([label, val]) => {
+      ws[R(row,0)] = C(label,{fill:"F2F2F2",bold:true,sz:10});
+      ws[R(row,1)] = C(val,{sz:10});
+      row++;
+    });
+
+    ws["!ref"] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row-1,c:1}});
+    ws["!cols"] = [{wch:22},{wch:40}];
+    ws["!rows"] = [{hpt:24},...Array(rows.length).fill({hpt:28})];
+    ws["!merges"] = merges;
+    ws["!pageSetup"] = {orientation:"portrait",paperSize:9};
+    ws["!margins"] = {left:0.5,right:0.5,top:0.5,bottom:0.5,header:0,footer:0};
+    XLSX.utils.book_append_sheet(wb, ws, "欠席連絡票");
+    XLSX.writeFile(wb, `欠席連絡票_${child?.name||"不明"}_${rec.date}.xlsx`);
   };
   const [stopEdit, setStopEdit] = useState(null); // {binId, stopId, time, childName}
 
@@ -4679,11 +4755,59 @@ ${drv?drv.name:''}`;
                     </select>
                   </div>
                   <div>
-                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>自由入力（任意）</div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>欠席理由・詳細（自由入力）</div>
                     <input type="text" value={kessekiForm.reasonFree||""}
                       placeholder="詳細を入力..."
                       onChange={e=>setKessekiForm(p=>({...p,reasonFree:e.target.value}))}
                       style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>欠席の予測日数</div>
+                    <input type="text" value={kessekiForm.yoteiDate||""}
+                      placeholder="例：2日間（月・火）"
+                      onChange={e=>setKessekiForm(p=>({...p,yoteiDate:e.target.value}))}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>連絡をくれた者</div>
+                    <input type="text" value={kessekiForm.renrakuSha||""}
+                      placeholder="例：母"
+                      onChange={e=>setKessekiForm(p=>({...p,renrakuSha:e.target.value}))}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>連絡の手段</div>
+                    <select value={kessekiForm.renrakuShudan||""} onChange={e=>setKessekiForm(p=>({...p,renrakuShudan:e.target.value}))}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14}}>
+                      <option value="">選択してください</option>
+                      <option value="電話">電話</option>
+                      <option value="LINE">LINE</option>
+                      <option value="メール">メール</option>
+                      <option value="連絡帳">連絡帳</option>
+                      <option value="その他">その他</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>次回の出席・施設の内容</div>
+                    <textarea value={kessekiForm.jikoNaiyou||""}
+                      placeholder="次回の予定など"
+                      onChange={e=>setKessekiForm(p=>({...p,jikoNaiyou:e.target.value}))}
+                      rows={2}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box",resize:"vertical"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>次回利用予定日</div>
+                    <input type="date" value={kessekiForm.jikaiYotei||""}
+                      onChange={e=>setKessekiForm(p=>({...p,jikaiYotei:e.target.value}))}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:"#718096",marginBottom:4}}>備考</div>
+                    <textarea value={kessekiForm.biko||""}
+                      placeholder="その他特記事項"
+                      onChange={e=>setKessekiForm(p=>({...p,biko:e.target.value}))}
+                      rows={2}
+                      style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:14,boxSizing:"border-box",resize:"vertical"}}/>
                   </div>
                   <button onClick={onKessekiSave}
                     style={{background:"#e53e3e",color:"white",border:"none",borderRadius:8,
@@ -4734,10 +4858,17 @@ ${drv?drv.name:''}`;
                             {rec.reason}
                           </div>}
                         </div>
-                        <button onClick={()=>onKessekiDelete(rec.id)}
-                          style={{background:"none",border:"none",color:"#fc8181",fontSize:20,cursor:"pointer",padding:"4px 8px"}}>
-                          ×
-                        </button>
+                        <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"center"}}>
+                          <button onClick={()=>exportKessekiXLSX(rec)}
+                            style={{background:"#ebf8ff",border:"1px solid #bee3f8",color:"#2b6cb0",
+                              borderRadius:6,padding:"4px 8px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+                            📥 出力
+                          </button>
+                          <button onClick={()=>onKessekiDelete(rec.id)}
+                            style={{background:"none",border:"none",color:"#fc8181",fontSize:20,cursor:"pointer",padding:"2px 8px"}}>
+                            ×
+                          </button>
+                        </div>
                       </div>
                     );
                   })
