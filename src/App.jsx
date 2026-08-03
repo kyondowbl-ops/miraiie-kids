@@ -120,9 +120,14 @@ const AuthWrapper = ({ children }) => {
       return;
     }
 
-    // 既存セッションを確認（ページロード時）
+    // 既存セッションを確認（ページロード時）- 5秒でタイムアウト
+    const sessionTimeout = setTimeout(() => { setAuthLoading(false); }, 5000);
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       setUser(session?.user ?? null);
+      setAuthLoading(false);
+    }).catch(() => {
+      clearTimeout(sessionTimeout);
       setAuthLoading(false);
     });
 
